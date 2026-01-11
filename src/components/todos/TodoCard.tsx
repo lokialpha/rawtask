@@ -2,6 +2,7 @@ import { cn } from '@/lib/utils';
 import { Todo, Client } from '@/types';
 import { ClientBadge } from '@/components/ui/ClientBadge';
 import { PaymentStatusBadge } from '@/components/ui/PaymentStatusBadge';
+import { OverdueBadge } from '@/components/ui/OverdueBadge';
 import { SwipeableCard } from '@/components/ui/SwipeableCard';
 import { Check, Pencil, Trash2 } from 'lucide-react';
 
@@ -14,12 +15,26 @@ interface TodoCardProps {
   showActions?: boolean;
 }
 
+function calculateDaysOverdue(dueDate: string, completed: boolean, paymentStatus: string): number {
+  if (!completed || paymentStatus !== 'unpaid') return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+  const diffTime = today.getTime() - due.getTime();
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+}
+
 export function TodoCard({ todo, client, onToggle, onEdit, onDelete, showActions = true }: TodoCardProps) {
+  const daysOverdue = calculateDaysOverdue(todo.dueDate, todo.completed, todo.paymentStatus);
+  const isOverdue = daysOverdue > 0;
+  
   const cardContent = (
     <div
       className={cn(
         "bg-card rounded-2xl p-4 shadow-soft transition-all duration-200",
-        todo.completed && "opacity-70"
+        todo.completed && "opacity-70",
+        isOverdue && "ring-2 ring-expense/30 bg-expense-soft/30"
       )}
     >
       <div className="flex items-start gap-3">
@@ -55,6 +70,7 @@ export function TodoCard({ todo, client, onToggle, onEdit, onDelete, showActions
           <div className="flex items-center gap-2 flex-wrap">
             <ClientBadge client={client} />
             <PaymentStatusBadge status={todo.paymentStatus} amount={todo.amount} />
+            <OverdueBadge daysOverdue={daysOverdue} />
           </div>
         </div>
 
@@ -103,11 +119,15 @@ export function TodoCard({ todo, client, onToggle, onEdit, onDelete, showActions
 
 // Also export a non-swipeable version for desktop
 export function TodoCardDesktop({ todo, client, onToggle, onEdit, onDelete }: TodoCardProps) {
+  const daysOverdue = calculateDaysOverdue(todo.dueDate, todo.completed, todo.paymentStatus);
+  const isOverdue = daysOverdue > 0;
+  
   return (
     <div
       className={cn(
         "bg-card rounded-2xl p-4 shadow-soft transition-all duration-200 active:scale-[0.98]",
-        todo.completed && "opacity-70"
+        todo.completed && "opacity-70",
+        isOverdue && "ring-2 ring-expense/30 bg-expense-soft/30"
       )}
     >
       <div className="flex items-start gap-3">
@@ -140,6 +160,7 @@ export function TodoCardDesktop({ todo, client, onToggle, onEdit, onDelete }: To
           <div className="flex items-center gap-2 flex-wrap">
             <ClientBadge client={client} />
             <PaymentStatusBadge status={todo.paymentStatus} amount={todo.amount} />
+            <OverdueBadge daysOverdue={daysOverdue} />
           </div>
         </div>
 
