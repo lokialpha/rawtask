@@ -11,6 +11,7 @@ import Clients from "./pages/Clients";
 import Stats from "./pages/Stats";
 import AddTask from "./pages/AddTask";
 import AddMoney from "./pages/AddMoney";
+import AddClient from "./pages/AddClient";
 import EditTask from "./pages/EditTask";
 import EditMoney from "./pages/EditMoney";
 import NotFound from "./pages/NotFound";
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/money/new" element={<AddMoney />} />
             <Route path="/money/:id/edit" element={<EditMoney />} />
             <Route path="/clients" element={<Clients />} />
+            <Route path="/clients/new" element={<AddClient />} />
             <Route path="/stats" element={<Stats />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

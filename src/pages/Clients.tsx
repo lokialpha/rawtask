@@ -1,7 +1,8 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { useData } from '@/contexts/DataContext';
 import { cn } from '@/lib/utils';
-import { ChevronRight, CheckCircle2, Clock, TrendingUp } from 'lucide-react';
+import { ChevronRight, CheckCircle2, Clock, TrendingUp, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const dotColorMap = {
   blue: 'bg-client-blue',
@@ -20,6 +21,7 @@ const bgColorMap = {
 };
 
 export default function Clients() {
+  const navigate = useNavigate();
   const { clients, todos, money } = useData();
 
   const clientStats = clients.clients.map(client => {
@@ -44,12 +46,22 @@ export default function Clients() {
   });
 
   return (
-    <MobileLayout>
+    <MobileLayout showFab={false}>
       <header className="px-5 pt-6 pb-4 safe-top">
-        <h1 className="text-2xl font-bold">Clients</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {clients.clients.length} active clients
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Clients</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {clients.clients.length} active clients
+            </p>
+          </div>
+          <button
+            onClick={() => navigate('/clients/new')}
+            className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center shadow-primary active:scale-95 transition-transform"
+          >
+            <Plus className="w-5 h-5 text-primary-foreground" />
+          </button>
+        </div>
       </header>
 
       <section className="px-5 pb-6 space-y-3">
