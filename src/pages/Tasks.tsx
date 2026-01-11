@@ -1,29 +1,23 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { TodoCard } from '@/components/todos/TodoCard';
-import { mockTodos, mockClients } from '@/data/mockData';
+import { useData } from '@/contexts/DataContext';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 type Filter = 'all' | 'pending' | 'completed';
 
 export default function Tasks() {
-  const [todos, setTodos] = useState(mockTodos);
+  const { todos, clients } = useData();
   const [filter, setFilter] = useState<Filter>('all');
 
-  const filteredTodos = todos.filter(todo => {
+  const filteredTodos = todos.todos.filter(todo => {
     if (filter === 'pending') return !todo.completed;
     if (filter === 'completed') return todo.completed;
     return true;
   });
 
-  const toggleTodo = (id: string) => {
-    setTodos(prev =>
-      prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t))
-    );
-  };
-
   const getClient = (clientId: string) =>
-    mockClients.find(c => c.id === clientId)!;
+    clients.clients.find(c => c.id === clientId)!;
 
   const filters: { key: Filter; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -36,7 +30,7 @@ export default function Tasks() {
       <header className="px-5 pt-6 pb-4 safe-top">
         <h1 className="text-2xl font-bold">Tasks</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {todos.filter(t => !t.completed).length} tasks pending
+          {todos.todos.filter(t => !t.completed).length} tasks pending
         </p>
       </header>
 
@@ -68,7 +62,7 @@ export default function Tasks() {
               key={todo.id}
               todo={todo}
               client={getClient(todo.clientId)}
-              onToggle={toggleTodo}
+              onToggle={todos.toggleTodo}
             />
           ))
         ) : (

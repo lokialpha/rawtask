@@ -1,7 +1,7 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { MoneyEntryCard } from '@/components/money/MoneyEntryCard';
 import { SummaryCard } from '@/components/ui/SummaryCard';
-import { mockMoneyEntries } from '@/data/mockData';
+import { useData } from '@/contexts/DataContext';
 import { TrendingUp, TrendingDown, Scale } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
@@ -9,25 +9,26 @@ import { cn } from '@/lib/utils';
 type Filter = 'all' | 'income' | 'expense';
 
 export default function Money() {
+  const { money } = useData();
   const [filter, setFilter] = useState<Filter>('all');
 
-  const filteredEntries = mockMoneyEntries.filter(entry => {
+  const filteredEntries = money.entries.filter(entry => {
     if (filter === 'income') return entry.type === 'income';
     if (filter === 'expense') return entry.type === 'expense';
     return true;
   });
 
   const summary = useMemo(() => {
-    const income = mockMoneyEntries
+    const income = money.entries
       .filter(m => m.type === 'income')
       .reduce((sum, m) => sum + m.amount, 0);
     
-    const expense = mockMoneyEntries
+    const expense = money.entries
       .filter(m => m.type === 'expense')
       .reduce((sum, m) => sum + m.amount, 0);
 
     return { income, expense, net: income - expense };
-  }, []);
+  }, [money.entries]);
 
   const filters: { key: Filter; label: string }[] = [
     { key: 'all', label: 'All' },
