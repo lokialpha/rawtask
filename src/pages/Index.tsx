@@ -1,5 +1,6 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { SummaryCard } from '@/components/ui/SummaryCard';
+import { OverdueAlertBanner } from '@/components/ui/OverdueAlertBanner';
 import { TodoCard, TodoCardDesktop } from '@/components/todos/TodoCard';
 import { MoneyEntryCard } from '@/components/money/MoneyEntryCard';
 import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
@@ -36,6 +37,26 @@ export default function Index() {
     money.entries.filter(m => m.date === todayStr),
     [money.entries, todayStr]
   );
+
+  // Calculate overdue unpaid tasks (completed, unpaid, past due date)
+  const overdueUnpaid = useMemo(() => {
+    const todayDate = new Date(todayStr);
+    return todos.todos
+      .filter(t => t.paymentStatus === 'unpaid' && t.completed)
+      .map(t => {
+        const dueDate = new Date(t.dueDate);
+        const diffTime = todayDate.getTime() - dueDate.getTime();
+        const daysOverdue = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        return { ...t, daysOverdue };
+      })
+      .filter(t => t.daysOverdue > 0)
+      .sort((a, b) => b.daysOverdue - a.daysOverdue);
+  }, [todos.todos, todayStr]);
+
+  const overdueStats = useMemo(() => ({
+    count: overdueUnpaid.length,
+    totalAmount: overdueUnpaid.reduce((sum, t) => sum + (t.amount || 0), 0),
+  }), [overdueUnpaid]);
 
   const summary = useMemo(() => {
     const income = todayMoney
@@ -103,6 +124,18 @@ export default function Index() {
           </div>
         </div>
       </header>
+
+      {/* Overdue Alert Banner - Top priority visibility */}
+      {overdueStats.count > 0 && (
+        <section className="px-5 mb-3">
+          <OverdueAlertBanner
+            count={overdueStats.count}
+            totalAmount={overdueStats.totalAmount}
+            formatCurrency={formatCurrency}
+            onClick={() => navigate('/tasks/unpaid')}
+          />
+        </section>
+      )}
 
       {/* Summary Cards */}
       <section className="px-5 space-y-3">
