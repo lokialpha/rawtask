@@ -1,4 +1,4 @@
-import { Home, CheckSquare, Wallet, Users, BarChart3 } from 'lucide-react';
+import { Home, CheckSquare, Wallet, Users, Settings } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -7,7 +7,7 @@ const navItems = [
   { icon: CheckSquare, label: 'Tasks', path: '/tasks' },
   { icon: Wallet, label: 'Money', path: '/money' },
   { icon: Users, label: 'Clients', path: '/clients' },
-  { icon: BarChart3, label: 'Stats', path: '/stats' },
+  { icon: Settings, label: 'Settings', path: '/settings' },
 ];
 
 export function BottomNav() {

@@ -1,12 +1,14 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { SummaryCard } from '@/components/ui/SummaryCard';
 import { useData } from '@/contexts/DataContext';
+import { useSettings } from '@/hooks/useSettings';
 import { TrendingUp, TrendingDown, Target, CheckCircle2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 
 export default function Stats() {
   const { todos, money } = useData();
+  const { settings, formatCurrency } = useSettings();
 
   const stats = useMemo(() => {
     const income = money.entries
@@ -23,8 +25,8 @@ export default function Stats() {
       t => t.paymentStatus === 'unpaid' && t.completed
     ).length;
 
-    const monthlyGoal = 5000; // Example goal
-    const progress = Math.min((income / monthlyGoal) * 100, 100);
+    const monthlyGoal = settings.monthlyGoal;
+    const progress = monthlyGoal > 0 ? Math.min((income / monthlyGoal) * 100, 100) : 0;
 
     return {
       income,
@@ -36,7 +38,7 @@ export default function Stats() {
       monthlyGoal,
       progress,
     };
-  }, [todos.todos, money.entries]);
+  }, [todos.todos, money.entries, settings.monthlyGoal]);
 
   // Simple bar chart data
   const chartData = [
@@ -58,7 +60,7 @@ export default function Stats() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-xs text-muted-foreground">Monthly Goal</p>
-              <p className="text-xl font-bold">${stats.income} / ${stats.monthlyGoal}</p>
+              <p className="text-xl font-bold">{formatCurrency(stats.income)} / {formatCurrency(stats.monthlyGoal)}</p>
             </div>
             <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center shadow-primary">
               <Target className="w-5 h-5 text-primary-foreground" />
@@ -81,13 +83,13 @@ export default function Stats() {
       <section className="px-5 mt-4 grid grid-cols-2 gap-3">
         <SummaryCard
           title="Total Income"
-          value={`$${stats.income}`}
+          value={formatCurrency(stats.income)}
           icon={TrendingUp}
           variant="income"
         />
         <SummaryCard
           title="Total Expenses"
-          value={`$${stats.expense}`}
+          value={formatCurrency(stats.expense)}
           icon={TrendingDown}
           variant="expense"
         />
@@ -101,7 +103,7 @@ export default function Stats() {
             <div key={item.label}>
               <div className="flex items-center justify-between text-sm mb-2">
                 <span className="text-muted-foreground">{item.label}</span>
-                <span className="font-semibold">${item.value}</span>
+                <span className="font-semibold">{formatCurrency(item.value)}</span>
               </div>
               <div className="h-4 bg-muted rounded-full overflow-hidden">
                 <div

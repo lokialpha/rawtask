@@ -4,6 +4,7 @@ import { TodoCard, TodoCardDesktop } from '@/components/todos/TodoCard';
 import { MoneyEntryCard } from '@/components/money/MoneyEntryCard';
 import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
 import { useData } from '@/contexts/DataContext';
+import { useSettings } from '@/hooks/useSettings';
 import { TrendingUp, TrendingDown, Clock, Wallet } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +13,7 @@ import { toast } from 'sonner';
 export default function Index() {
   const navigate = useNavigate();
   const { todos, money, clients } = useData();
+  const { formatCurrency } = useSettings();
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [deleteMoneyId, setDeleteMoneyId] = useState<string | null>(null);
   
@@ -106,13 +108,13 @@ export default function Index() {
         <div className="grid grid-cols-2 gap-3">
           <SummaryCard
             title="Today's Income"
-            value={`$${summary.income}`}
+            value={formatCurrency(summary.income)}
             icon={TrendingUp}
             variant="income"
           />
           <SummaryCard
             title="Today's Expenses"
-            value={`$${summary.expense}`}
+            value={formatCurrency(summary.expense)}
             icon={TrendingDown}
             variant="expense"
           />
@@ -121,7 +123,7 @@ export default function Index() {
         {summary.pendingCount > 0 && (
           <SummaryCard
             title="Pending Payments"
-            value={`$${summary.pendingAmount}`}
+            value={formatCurrency(summary.pendingAmount)}
             subtitle={`${summary.pendingCount} task${summary.pendingCount > 1 ? 's' : ''} waiting → Tap to view`}
             icon={Clock}
             variant="pending"
