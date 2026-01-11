@@ -118,16 +118,10 @@ export function WeeklySummary({ todos, moneyEntries, formatCurrency, monthlyGoal
       
       if (!alreadyCelebrated) {
         // Show celebration toast
-        toast.success(
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">{currentMilestone.emoji}</span>
-            <div>
-              <p className="font-bold">{currentMilestone.title}</p>
-              <p className="text-sm text-muted-foreground">{currentMilestone.message}</p>
-            </div>
-          </div>,
-          { duration: 5000 }
-        );
+        toast.success(`${currentMilestone.emoji} ${currentMilestone.title}`, {
+          description: currentMilestone.message,
+          duration: 5000
+        });
         
         localStorage.setItem(celebratedKey, 'true');
         setCelebratedMilestone(currentMilestone.days);
