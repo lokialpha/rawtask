@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { CheckCircle2, TrendingUp, Calendar } from 'lucide-react';
+import { CheckCircle2, TrendingUp, Calendar, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { startOfWeek, endOfWeek, format, isWithinInterval, eachDayOfInterval, isSameDay } from 'date-fns';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format, isWithinInterval, eachDayOfInterval, isSameDay } from 'date-fns';
 
 interface Todo {
   id: string;
@@ -22,13 +22,16 @@ interface WeeklySummaryProps {
   todos: Todo[];
   moneyEntries: MoneyEntry[];
   formatCurrency: (amount: number) => string;
+  monthlyGoal?: number;
 }
 
-export function WeeklySummary({ todos, moneyEntries, formatCurrency }: WeeklySummaryProps) {
+export function WeeklySummary({ todos, moneyEntries, formatCurrency, monthlyGoal = 0 }: WeeklySummaryProps) {
   const weekData = useMemo(() => {
     const today = new Date();
     const weekStart = startOfWeek(today, { weekStartsOn: 1 }); // Monday
     const weekEnd = endOfWeek(today, { weekStartsOn: 1 }); // Sunday
+    const monthStart = startOfMonth(today);
+    const monthEnd = endOfMonth(today);
     const daysOfWeek = eachDayOfInterval({ start: weekStart, end: weekEnd });
 
     // Tasks completed this week
@@ -45,6 +48,15 @@ export function WeeklySummary({ todos, moneyEntries, formatCurrency }: WeeklySum
         if (entry.type !== 'income') return false;
         const entryDate = new Date(entry.date);
         return isWithinInterval(entryDate, { start: weekStart, end: weekEnd });
+      })
+      .reduce((sum, entry) => sum + entry.amount, 0);
+
+    // Income this month (for goal progress)
+    const monthlyIncome = moneyEntries
+      .filter(entry => {
+        if (entry.type !== 'income') return false;
+        const entryDate = new Date(entry.date);
+        return isWithinInterval(entryDate, { start: monthStart, end: monthEnd });
       })
       .reduce((sum, entry) => sum + entry.amount, 0);
 
@@ -75,12 +87,16 @@ export function WeeklySummary({ todos, moneyEntries, formatCurrency }: WeeklySum
       completedCount: completedThisWeek.length,
       earnedFromTasks: completedThisWeek.reduce((sum, t) => sum + (t.amount || 0), 0),
       totalIncome: weeklyIncome,
+      monthlyIncome,
       dailyActivity,
       weekLabel: `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d')}`,
+      monthLabel: format(today, 'MMMM'),
     };
   }, [todos, moneyEntries]);
 
   const maxCompleted = Math.max(...weekData.dailyActivity.map(d => d.completed), 1);
+  const goalProgress = monthlyGoal > 0 ? Math.min((weekData.monthlyIncome / monthlyGoal) * 100, 100) : 0;
+  const isGoalMet = weekData.monthlyIncome >= monthlyGoal;
 
   return (
     <div className="bg-card rounded-2xl p-4 shadow-soft">
@@ -110,6 +126,45 @@ export function WeeklySummary({ todos, moneyEntries, formatCurrency }: WeeklySum
           <p className="text-lg font-bold text-primary">{weekData.completedCount} tasks</p>
         </div>
       </div>
+
+      {/* Monthly Goal Progress */}
+      {monthlyGoal > 0 && (
+        <div className="mb-4 p-3 bg-muted/50 rounded-xl">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Target className={cn("w-3.5 h-3.5", isGoalMet ? "text-income" : "text-primary")} />
+              <span className="text-xs font-medium">{weekData.monthLabel} Goal</span>
+            </div>
+            <span className={cn("text-xs font-semibold", isGoalMet ? "text-income" : "text-foreground")}>
+              {formatCurrency(weekData.monthlyIncome)} / {formatCurrency(monthlyGoal)}
+            </span>
+          </div>
+          <div className="relative h-2 bg-muted rounded-full overflow-hidden">
+            <div 
+              className={cn(
+                "absolute inset-y-0 left-0 rounded-full transition-all duration-500",
+                isGoalMet ? "bg-income" : "gradient-primary"
+              )}
+              style={{ width: `${goalProgress}%` }}
+            />
+          </div>
+          <div className="flex items-center justify-between mt-1.5">
+            <span className="text-2xs text-muted-foreground">
+              {Math.round(goalProgress)}% complete
+            </span>
+            {!isGoalMet && (
+              <span className="text-2xs text-muted-foreground">
+                {formatCurrency(monthlyGoal - weekData.monthlyIncome)} to go
+              </span>
+            )}
+            {isGoalMet && (
+              <span className="text-2xs text-income font-medium">
+                🎉 Goal reached!
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Activity Chart */}
       <div className="flex items-end justify-between gap-1 h-16 pt-2">

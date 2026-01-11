@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 export default function Index() {
   const navigate = useNavigate();
   const { todos, money, clients } = useData();
-  const { formatCurrency } = useSettings();
+  const { formatCurrency, settings } = useSettings();
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [deleteMoneyId, setDeleteMoneyId] = useState<string | null>(null);
   
@@ -144,6 +144,7 @@ export default function Index() {
           todos={todos.todos}
           moneyEntries={money.entries}
           formatCurrency={formatCurrency}
+          monthlyGoal={settings.monthlyGoal}
         />
       </section>
 
