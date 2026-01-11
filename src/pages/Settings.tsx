@@ -3,27 +3,52 @@ import { useSettings, CURRENCIES, Currency } from '@/hooks/useSettings';
 import { useDataBackup } from '@/hooks/useDataBackup';
 import { useReportExport } from '@/hooks/useReportExport';
 import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
-import { Settings as SettingsIcon, DollarSign, Target, Check, BarChart3, ChevronRight, Sun, Moon, Monitor, Download, Upload, Database, FileSpreadsheet, FileText } from 'lucide-react';
+import { Settings as SettingsIcon, DollarSign, Target, Check, BarChart3, ChevronRight, Sun, Moon, Monitor, Download, Upload, Database, FileSpreadsheet, FileText, Calendar, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
+import { format, subMonths, startOfMonth, endOfMonth, subWeeks, startOfWeek, endOfWeek } from 'date-fns';
+
+interface DateRange {
+  from?: Date;
+  to?: Date;
+}
 
 export default function Settings() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { settings, updateCurrency, updateMonthlyGoal, formatCurrency } = useSettings();
   const { exportData, importData, getStats } = useDataBackup();
-  const { exportCSV, exportPDF, entriesCount } = useReportExport();
+  const { exportCSV, exportPDF, getFilteredEntriesCount, entriesCount } = useReportExport();
   const [goalInput, setGoalInput] = useState(settings.monthlyGoal.toString());
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
+  const [dateRange, setDateRange] = useState<DateRange>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const stats = getStats();
+
+  const filteredCount = useMemo(() => 
+    getFilteredEntriesCount(dateRange), 
+    [dateRange, getFilteredEntriesCount]
+  );
+
+  const dateRangePresets = [
+    { label: 'This Week', getValue: () => ({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
+    { label: 'Last Week', getValue: () => ({ from: startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 }), to: endOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 }) }) },
+    { label: 'This Month', getValue: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }) },
+    { label: 'Last Month', getValue: () => ({ from: startOfMonth(subMonths(new Date(), 1)), to: endOfMonth(subMonths(new Date(), 1)) }) },
+    { label: 'Last 3 Months', getValue: () => ({ from: startOfMonth(subMonths(new Date(), 2)), to: new Date() }) },
+  ];
+
+  const handleExportCSV = () => exportCSV(dateRange);
+  const handleExportPDF = () => exportPDF(dateRange);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -286,16 +311,90 @@ export default function Settings() {
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground mb-3">
-            Export {entriesCount} transactions as a report
-          </p>
+          {/* Date Range Selector */}
+          <div className="mb-4">
+            <Label className="text-xs text-muted-foreground mb-2 block">Date Range</Label>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {dateRangePresets.map((preset) => (
+                <button
+                  key={preset.label}
+                  onClick={() => setDateRange(preset.getValue())}
+                  className={cn(
+                    "text-xs px-3 py-1.5 rounded-full border transition-colors",
+                    dateRange.from && dateRange.to && 
+                    format(dateRange.from, 'yyyy-MM-dd') === format(preset.getValue().from, 'yyyy-MM-dd') &&
+                    format(dateRange.to, 'yyyy-MM-dd') === format(preset.getValue().to, 'yyyy-MM-dd')
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  {preset.label}
+                </button>
+              ))}
+              {(dateRange.from || dateRange.to) && (
+                <button
+                  onClick={() => setDateRange({})}
+                  className="text-xs px-3 py-1.5 rounded-full border border-border hover:border-destructive/50 text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+                >
+                  <X className="w-3 h-3" />
+                  Clear
+                </button>
+              )}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="justify-start text-left font-normal text-xs">
+                    <Calendar className="mr-2 h-3 w-3" />
+                    {dateRange.from ? format(dateRange.from, 'MMM d, yyyy') : 'From date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateRange.from}
+                    onSelect={(date) => setDateRange(prev => ({ ...prev, from: date }))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="justify-start text-left font-normal text-xs">
+                    <Calendar className="mr-2 h-3 w-3" />
+                    {dateRange.to ? format(dateRange.to, 'MMM d, yyyy') : 'To date'}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateRange.to}
+                    onSelect={(date) => setDateRange(prev => ({ ...prev, to: date }))}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          <div className="bg-muted/50 rounded-lg p-2 mb-3">
+            <p className="text-xs text-center text-muted-foreground">
+              {dateRange.from || dateRange.to ? (
+                <>Exporting <span className="font-semibold text-foreground">{filteredCount}</span> of {entriesCount} transactions</>
+              ) : (
+                <>Exporting all <span className="font-semibold text-foreground">{entriesCount}</span> transactions</>
+              )}
+            </p>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <Button
               variant="outline"
               className="flex items-center gap-2"
-              onClick={exportCSV}
-              disabled={entriesCount === 0}
+              onClick={handleExportCSV}
+              disabled={filteredCount === 0}
             >
               <FileSpreadsheet className="w-4 h-4" />
               CSV
@@ -303,8 +402,8 @@ export default function Settings() {
             <Button
               variant="outline"
               className="flex items-center gap-2"
-              onClick={exportPDF}
-              disabled={entriesCount === 0}
+              onClick={handleExportPDF}
+              disabled={filteredCount === 0}
             >
               <FileText className="w-4 h-4" />
               PDF
