@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
-import { CheckCircle2, TrendingUp, Calendar, Target, ChevronDown } from 'lucide-react';
+import { CheckCircle2, TrendingUp, Calendar, Target, ChevronDown, Flame } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format, isWithinInterval, eachDayOfInterval, isSameDay } from 'date-fns';
+import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format, isWithinInterval, eachDayOfInterval, isSameDay, subDays } from 'date-fns';
 import {
   Collapsible,
   CollapsibleContent,
@@ -30,8 +30,62 @@ interface WeeklySummaryProps {
   monthlyGoal?: number;
 }
 
+// Calculate current streak of consecutive days with completed tasks
+function calculateStreak(todos: Todo[]): { current: number; best: number } {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Get all unique dates with completions
+  const completionDates = new Set<string>();
+  todos.forEach(todo => {
+    if (todo.completed) {
+      const dateStr = todo.completedAt 
+        ? new Date(todo.completedAt).toISOString().split('T')[0]
+        : todo.dueDate;
+      completionDates.add(dateStr);
+    }
+  });
+
+  // Calculate current streak (going backwards from today)
+  let currentStreak = 0;
+  let checkDate = today;
+  
+  // Check if today has completions, if not start from yesterday
+  const todayStr = today.toISOString().split('T')[0];
+  if (!completionDates.has(todayStr)) {
+    checkDate = subDays(today, 1);
+  }
+  
+  while (true) {
+    const dateStr = checkDate.toISOString().split('T')[0];
+    if (completionDates.has(dateStr)) {
+      currentStreak++;
+      checkDate = subDays(checkDate, 1);
+    } else {
+      break;
+    }
+  }
+
+  // Calculate best streak (simple approach - check last 90 days)
+  let bestStreak = 0;
+  let tempStreak = 0;
+  for (let i = 90; i >= 0; i--) {
+    const dateStr = subDays(today, i).toISOString().split('T')[0];
+    if (completionDates.has(dateStr)) {
+      tempStreak++;
+      bestStreak = Math.max(bestStreak, tempStreak);
+    } else {
+      tempStreak = 0;
+    }
+  }
+
+  return { current: currentStreak, best: bestStreak };
+}
+
 export function WeeklySummary({ todos, moneyEntries, formatCurrency, monthlyGoal = 0 }: WeeklySummaryProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const streak = useMemo(() => calculateStreak(todos), [todos]);
 
   const weekData = useMemo(() => {
     const today = new Date();
@@ -122,11 +176,33 @@ export function WeeklySummary({ todos, moneyEntries, formatCurrency, monthlyGoal
             <Calendar className="w-4 h-4 text-primary" />
             <h3 className="text-sm font-semibold">This Week</h3>
           </div>
-          <span className="text-xs text-muted-foreground">{weekData.weekLabel}</span>
+          <div className="flex items-center gap-3">
+            {/* Streak Badge */}
+            {streak.current > 0 && (
+              <div className={cn(
+                "flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium",
+                streak.current >= 7 
+                  ? "bg-gradient-to-r from-orange-500 to-red-500 text-white" 
+                  : streak.current >= 3 
+                    ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400"
+                    : "bg-muted text-muted-foreground"
+              )}>
+                <Flame className={cn(
+                  "w-3 h-3",
+                  streak.current >= 3 && "animate-pulse"
+                )} />
+                <span>{streak.current}</span>
+              </div>
+            )}
+            <span className="text-xs text-muted-foreground">{weekData.weekLabel}</span>
+          </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className={cn(
+          "grid gap-3 mb-4",
+          streak.current > 0 ? "grid-cols-3" : "grid-cols-2"
+        )}>
           <div className="bg-income-soft rounded-xl p-3">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="w-3.5 h-3.5 text-income" />
@@ -141,6 +217,33 @@ export function WeeklySummary({ todos, moneyEntries, formatCurrency, monthlyGoal
             </div>
             <p className="text-lg font-bold text-primary">{weekData.completedCount} tasks</p>
           </div>
+          {streak.current > 0 && (
+            <div className={cn(
+              "rounded-xl p-3",
+              streak.current >= 7 
+                ? "bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/30"
+                : "bg-orange-100/50 dark:bg-orange-900/20"
+            )}>
+              <div className="flex items-center gap-2 mb-1">
+                <Flame className={cn(
+                  "w-3.5 h-3.5",
+                  streak.current >= 7 ? "text-orange-500" : "text-orange-500"
+                )} />
+                <span className="text-xs text-muted-foreground">Streak</span>
+              </div>
+              <p className={cn(
+                "text-lg font-bold",
+                streak.current >= 7 ? "text-orange-500" : "text-orange-600 dark:text-orange-400"
+              )}>
+                {streak.current} day{streak.current !== 1 ? 's' : ''}
+              </p>
+              {streak.best > streak.current && (
+                <p className="text-2xs text-muted-foreground mt-0.5">
+                  Best: {streak.best} days
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Monthly Goal Progress */}
