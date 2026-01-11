@@ -15,6 +15,7 @@ import AddTask from "./pages/AddTask";
 import AddMoney from "./pages/AddMoney";
 import AddClient from "./pages/AddClient";
 import EditClient from "./pages/EditClient";
+import ClientDetail from "./pages/ClientDetail";
 import EditTask from "./pages/EditTask";
 import EditMoney from "./pages/EditMoney";
 import UnpaidTasks from "./pages/UnpaidTasks";
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/money/:id/edit" element={<EditMoney />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/clients/new" element={<AddClient />} />
+            <Route path="/clients/:id" element={<ClientDetail />} />
             <Route path="/clients/:id/edit" element={<EditClient />} />
             <Route path="/stats" element={<Stats />} />
             <Route path="/settings" element={<Settings />} />
