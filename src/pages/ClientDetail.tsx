@@ -3,7 +3,7 @@ import { useData } from '@/contexts/DataContext';
 import { useSettings } from '@/hooks/useSettings';
 import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, CheckCircle2, Circle, Clock, TrendingUp, TrendingDown, Pencil, Trash2, Calendar } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Circle, Clock, TrendingUp, Pencil, Trash2, Calendar, Filter, ArrowUpDown } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
@@ -24,21 +24,24 @@ const dotColorMap: Record<string, string> = {
   orange: 'bg-client-orange',
 };
 
+type FilterType = 'all' | 'completed' | 'pending' | 'unpaid';
+type SortType = 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc';
+
 export default function ClientDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { clients, todos, money } = useData();
   const { formatCurrency } = useSettings();
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [sort, setSort] = useState<SortType>('date-desc');
 
   const client = clients.getClient(id || '');
 
   const clientData = useMemo(() => {
     if (!client) return null;
 
-    const clientTodos = todos.todos
-      .filter(t => t.clientId === client.id)
-      .sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
+    const clientTodos = todos.todos.filter(t => t.clientId === client.id);
 
     const clientIncome = money.entries
       .filter(m => {
@@ -65,6 +68,43 @@ export default function ClientDetail() {
       pendingAmount,
     };
   }, [client, todos.todos, money.entries]);
+
+  const filteredAndSortedTodos = useMemo(() => {
+    if (!clientData) return [];
+    
+    let filtered = [...clientData.todos];
+    
+    // Apply filter
+    switch (filter) {
+      case 'completed':
+        filtered = filtered.filter(t => t.completed);
+        break;
+      case 'pending':
+        filtered = filtered.filter(t => !t.completed);
+        break;
+      case 'unpaid':
+        filtered = filtered.filter(t => t.paymentStatus === 'unpaid' && t.completed);
+        break;
+    }
+    
+    // Apply sort
+    switch (sort) {
+      case 'date-desc':
+        filtered.sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime());
+        break;
+      case 'date-asc':
+        filtered.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+        break;
+      case 'amount-desc':
+        filtered.sort((a, b) => (b.amount || 0) - (a.amount || 0));
+        break;
+      case 'amount-asc':
+        filtered.sort((a, b) => (a.amount || 0) - (b.amount || 0));
+        break;
+    }
+    
+    return filtered;
+  }, [clientData, filter, sort]);
 
   if (!clientData) {
     return (
@@ -150,14 +190,57 @@ export default function ClientDetail() {
 
       {/* Tasks Section */}
       <section className="px-5 mt-2">
-        <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4" />
-          Tasks ({clientData.todos.length})
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-semibold flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4" />
+            Tasks ({filteredAndSortedTodos.length}/{clientData.todos.length})
+          </h2>
+        </div>
+
+        {/* Filter & Sort Controls */}
+        <div className="flex gap-2 mb-3 overflow-x-auto pb-1">
+          {/* Filter Pills */}
+          <div className="flex gap-1.5 flex-shrink-0">
+            {([
+              { key: 'all', label: 'All' },
+              { key: 'pending', label: 'Pending' },
+              { key: 'completed', label: 'Done' },
+              { key: 'unpaid', label: 'Unpaid' },
+            ] as const).map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap",
+                  filter === f.key
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Sort Dropdown */}
+        <div className="flex items-center gap-2 mb-3">
+          <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground" />
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortType)}
+            className="text-xs bg-card border border-border rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-primary/20"
+          >
+            <option value="date-desc">Newest first</option>
+            <option value="date-asc">Oldest first</option>
+            <option value="amount-desc">Highest amount</option>
+            <option value="amount-asc">Lowest amount</option>
+          </select>
+        </div>
         
         <div className="space-y-2">
-          {clientData.todos.length > 0 ? (
-            clientData.todos.map(todo => (
+          {filteredAndSortedTodos.length > 0 ? (
+            filteredAndSortedTodos.map(todo => (
               <div
                 key={todo.id}
                 className="bg-card rounded-xl p-3 shadow-soft flex items-center gap-3 group"
@@ -212,7 +295,9 @@ export default function ClientDetail() {
             ))
           ) : (
             <div className="bg-card rounded-xl p-4 text-center shadow-soft">
-              <p className="text-sm text-muted-foreground">No tasks yet</p>
+              <p className="text-sm text-muted-foreground">
+                {filter === 'all' ? 'No tasks yet' : `No ${filter} tasks`}
+              </p>
             </div>
           )}
         </div>
