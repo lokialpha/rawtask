@@ -282,6 +282,22 @@ export default function Tasks() {
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
+              <div className="p-2 border-b border-border flex gap-2">
+                <button
+                  onClick={() => handleDateSelect(new Date())}
+                  className="flex-1 px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
+                >
+                  Today
+                </button>
+                {dateFilter && (
+                  <button
+                    onClick={() => clearDateFilter()}
+                    className="px-3 py-1.5 text-xs font-medium bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
               <CalendarComponent
                 mode="single"
                 selected={dateFilter || undefined}
