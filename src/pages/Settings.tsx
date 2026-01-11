@@ -1,10 +1,12 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { useSettings, CURRENCIES, Currency } from '@/hooks/useSettings';
-import { Settings as SettingsIcon, DollarSign, Target, Check, BarChart3, ChevronRight, Sun, Moon, Monitor } from 'lucide-react';
+import { useDataBackup } from '@/hooks/useDataBackup';
+import { Settings as SettingsIcon, DollarSign, Target, Check, BarChart3, ChevronRight, Sun, Moon, Monitor, Download, Upload, Database } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
@@ -13,7 +15,21 @@ export default function Settings() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
   const { settings, updateCurrency, updateMonthlyGoal, formatCurrency } = useSettings();
+  const { exportData, importData, getStats } = useDataBackup();
   const [goalInput, setGoalInput] = useState(settings.monthlyGoal.toString());
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const stats = getStats();
+
+  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      importData(file);
+    }
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const themeOptions = [
     { value: 'light', label: 'Light', icon: Sun },
@@ -173,6 +189,68 @@ export default function Settings() {
               );
             })}
           </div>
+        </div>
+      </section>
+
+      {/* Data Backup */}
+      <section className="px-5 mt-4">
+        <div className="bg-card rounded-2xl p-5 shadow-soft">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center">
+              <Database className="w-5 h-5 text-secondary-foreground" />
+            </div>
+            <div>
+              <h2 className="font-semibold">Data Backup</h2>
+              <p className="text-xs text-muted-foreground">Export or import your data</p>
+            </div>
+          </div>
+
+          <div className="bg-muted/50 rounded-xl p-3 mb-4">
+            <p className="text-xs text-muted-foreground mb-2">Current data:</p>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <p className="text-lg font-bold">{stats.clientsCount}</p>
+                <p className="text-2xs text-muted-foreground">Clients</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold">{stats.todosCount}</p>
+                <p className="text-2xs text-muted-foreground">Tasks</p>
+              </div>
+              <div>
+                <p className="text-lg font-bold">{stats.moneyEntriesCount}</p>
+                <p className="text-2xs text-muted-foreground">Entries</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+              onClick={exportData}
+            >
+              <Download className="w-4 h-4" />
+              Export
+            </Button>
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="w-4 h-4" />
+              Import
+            </Button>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleFileImport}
+            className="hidden"
+          />
+          <p className="text-2xs text-muted-foreground mt-3 text-center">
+            Import will replace all existing data
+          </p>
         </div>
       </section>
 
