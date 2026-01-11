@@ -1,9 +1,12 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { useData } from '@/contexts/DataContext';
+import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
 import { cn } from '@/lib/utils';
-import { ChevronRight, CheckCircle2, Clock, TrendingUp, Plus } from 'lucide-react';
+import { ChevronRight, CheckCircle2, Clock, TrendingUp, Plus, Pencil, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-
+import { useState } from 'react';
+import { toast } from 'sonner';
+import { useSettings } from '@/hooks/useSettings';
 const dotColorMap = {
   blue: 'bg-client-blue',
   purple: 'bg-client-purple',
@@ -23,6 +26,8 @@ const bgColorMap = {
 export default function Clients() {
   const navigate = useNavigate();
   const { clients, todos, money } = useData();
+  const { formatCurrency } = useSettings();
+  const [deleteClientId, setDeleteClientId] = useState<string | null>(null);
 
   const clientStats = clients.clients.map(client => {
     const clientTodos = todos.todos.filter(t => t.clientId === client.id);
@@ -44,6 +49,24 @@ export default function Clients() {
       income,
     };
   });
+
+  const handleDelete = (id: string) => {
+    // Check if client has tasks
+    const clientTodos = todos.todos.filter(t => t.clientId === id);
+    if (clientTodos.length > 0) {
+      toast.error('Cannot delete client with existing tasks');
+      return;
+    }
+    setDeleteClientId(id);
+  };
+
+  const confirmDelete = () => {
+    if (deleteClientId) {
+      clients.deleteClient(deleteClientId);
+      toast.success('Client deleted');
+      setDeleteClientId(null);
+    }
+  };
 
   return (
     <MobileLayout showFab={false}>
@@ -68,7 +91,7 @@ export default function Clients() {
         {clientStats.map(client => (
           <div
             key={client.id}
-            className="bg-card rounded-2xl p-4 shadow-soft active:scale-[0.98] transition-transform"
+            className="bg-card rounded-2xl p-4 shadow-soft group"
           >
             <div className="flex items-center gap-3">
               {/* Avatar */}
@@ -115,17 +138,39 @@ export default function Clients() {
                   {client.income > 0 && (
                     <span className="flex items-center gap-1 text-income">
                       <TrendingUp className="w-3 h-3" />
-                      ${client.income}
+                      {formatCurrency(client.income)}
                     </span>
                   )}
                 </div>
               </div>
 
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+              {/* Action Buttons */}
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity sm:opacity-100">
+                <button
+                  onClick={() => navigate(`/clients/${client.id}/edit`)}
+                  className="w-9 h-9 rounded-xl bg-muted/80 hover:bg-muted flex items-center justify-center transition-colors"
+                >
+                  <Pencil className="w-4 h-4 text-muted-foreground" />
+                </button>
+                <button
+                  onClick={() => handleDelete(client.id)}
+                  className="w-9 h-9 rounded-xl bg-expense-soft hover:bg-expense/20 flex items-center justify-center transition-colors"
+                >
+                  <Trash2 className="w-4 h-4 text-expense" />
+                </button>
+              </div>
             </div>
           </div>
         ))}
       </section>
+
+      <DeleteConfirmDialog
+        open={!!deleteClientId}
+        onOpenChange={(open) => !open && setDeleteClientId(null)}
+        onConfirm={confirmDelete}
+        title="Delete Client"
+        description="Are you sure you want to delete this client? This action cannot be undone."
+      />
     </MobileLayout>
   );
 }
