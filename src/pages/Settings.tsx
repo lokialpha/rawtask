@@ -1,13 +1,15 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { useSettings, CURRENCIES, Currency } from '@/hooks/useSettings';
-import { Settings as SettingsIcon, DollarSign, Target, Check } from 'lucide-react';
+import { Settings as SettingsIcon, DollarSign, Target, Check, BarChart3, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 export default function Settings() {
+  const navigate = useNavigate();
   const { settings, updateCurrency, updateMonthlyGoal, formatCurrency } = useSettings();
   const [goalInput, setGoalInput] = useState(settings.monthlyGoal.toString());
 
@@ -86,7 +88,7 @@ export default function Settings() {
       </section>
 
       {/* Currency Selection */}
-      <section className="px-5 mt-4 pb-6">
+      <section className="px-5 mt-4">
         <div className="bg-card rounded-2xl p-5 shadow-soft">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
@@ -123,6 +125,27 @@ export default function Settings() {
               );
             })}
           </div>
+        </div>
+      </section>
+
+      {/* Quick Links */}
+      <section className="px-5 mt-4 pb-6">
+        <div className="bg-card rounded-2xl shadow-soft overflow-hidden">
+          <button
+            onClick={() => navigate('/stats')}
+            className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center">
+                <BarChart3 className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold">View Stats</p>
+                <p className="text-xs text-muted-foreground">See your financial overview</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </button>
         </div>
       </section>
     </MobileLayout>
