@@ -2,9 +2,9 @@ import { MobileLayout } from '@/components/layout/MobileLayout';
 import { useData } from '@/contexts/DataContext';
 import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
 import { cn } from '@/lib/utils';
-import { ChevronRight, CheckCircle2, Clock, TrendingUp, Plus, Pencil, Trash2 } from 'lucide-react';
+import { ChevronRight, CheckCircle2, Clock, TrendingUp, Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useSettings } from '@/hooks/useSettings';
 const dotColorMap = {
@@ -29,26 +29,37 @@ export default function Clients() {
   const { formatCurrency } = useSettings();
   const [deleteClientId, setDeleteClientId] = useState<string | null>(null);
 
-  const clientStats = clients.clients.map(client => {
-    const clientTodos = todos.todos.filter(t => t.clientId === client.id);
-    const completed = clientTodos.filter(t => t.completed).length;
-    const unpaid = clientTodos.filter(t => t.paymentStatus === 'unpaid' && t.completed).length;
+  const clientStats = useMemo(() => {
+    const now = new Date();
     
-    const income = money.entries
-      .filter(m => {
-        const linkedTodo = todos.todos.find(t => t.id === m.linkedTodoId);
-        return linkedTodo?.clientId === client.id && m.type === 'income';
-      })
-      .reduce((sum, m) => sum + m.amount, 0);
+    return clients.clients.map(client => {
+      const clientTodos = todos.todos.filter(t => t.clientId === client.id);
+      const completed = clientTodos.filter(t => t.completed).length;
+      const unpaid = clientTodos.filter(t => t.paymentStatus === 'unpaid' && t.completed).length;
+      
+      // Calculate overdue unpaid tasks
+      const overdue = clientTodos.filter(t => {
+        if (!t.completed || t.paymentStatus !== 'unpaid' || !t.dueDate) return false;
+        return new Date(t.dueDate) < now;
+      }).length;
+      
+      const income = money.entries
+        .filter(m => {
+          const linkedTodo = todos.todos.find(t => t.id === m.linkedTodoId);
+          return linkedTodo?.clientId === client.id && m.type === 'income';
+        })
+        .reduce((sum, m) => sum + m.amount, 0);
 
-    return {
-      ...client,
-      totalTasks: clientTodos.length,
-      completed,
-      unpaid,
-      income,
-    };
-  });
+      return {
+        ...client,
+        totalTasks: clientTodos.length,
+        completed,
+        unpaid,
+        overdue,
+        income,
+      };
+    });
+  }, [clients.clients, todos.todos, money.entries]);
 
   const handleDelete = (id: string) => {
     // Check if client has tasks
@@ -130,7 +141,13 @@ export default function Clients() {
                     <CheckCircle2 className="w-3 h-3" />
                     {client.completed}/{client.totalTasks}
                   </span>
-                  {client.unpaid > 0 && (
+                  {client.overdue > 0 && (
+                    <span className="flex items-center gap-1 text-expense font-medium animate-pulse-subtle">
+                      <AlertTriangle className="w-3 h-3" />
+                      {client.overdue} overdue
+                    </span>
+                  )}
+                  {client.unpaid > 0 && client.overdue === 0 && (
                     <span className="flex items-center gap-1 text-pending">
                       <Clock className="w-3 h-3" />
                       {client.unpaid} unpaid
