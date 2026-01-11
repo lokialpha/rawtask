@@ -1,16 +1,21 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { MoneyEntryCard } from '@/components/money/MoneyEntryCard';
 import { SummaryCard } from '@/components/ui/SummaryCard';
+import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
 import { useData } from '@/contexts/DataContext';
 import { TrendingUp, TrendingDown, Scale } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 type Filter = 'all' | 'income' | 'expense';
 
 export default function Money() {
+  const navigate = useNavigate();
   const { money } = useData();
   const [filter, setFilter] = useState<Filter>('all');
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const filteredEntries = money.entries.filter(entry => {
     if (filter === 'income') return entry.type === 'income';
@@ -30,6 +35,22 @@ export default function Money() {
     return { income, expense, net: income - expense };
   }, [money.entries]);
 
+  const handleEdit = (id: string) => {
+    navigate(`/money/${id}/edit`);
+  };
+
+  const handleDelete = (id: string) => {
+    setDeleteId(id);
+  };
+
+  const confirmDelete = () => {
+    if (deleteId) {
+      money.deleteEntry(deleteId);
+      toast.success('Entry deleted');
+      setDeleteId(null);
+    }
+  };
+
   const filters: { key: Filter; label: string }[] = [
     { key: 'all', label: 'All' },
     { key: 'income', label: 'Income' },
@@ -41,6 +62,9 @@ export default function Money() {
       <header className="px-5 pt-6 pb-4 safe-top">
         <h1 className="text-2xl font-bold">Money</h1>
         <p className="text-sm text-muted-foreground mt-1">Track income & expenses</p>
+        <p className="text-xs text-muted-foreground mt-1 sm:hidden">
+          Swipe left on an entry to edit or delete
+        </p>
       </header>
 
       {/* Summary */}
@@ -122,7 +146,12 @@ export default function Money() {
         <h2 className="text-base font-semibold">Recent Transactions</h2>
         {filteredEntries.length > 0 ? (
           filteredEntries.map(entry => (
-            <MoneyEntryCard key={entry.id} entry={entry} />
+            <MoneyEntryCard
+              key={entry.id}
+              entry={entry}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
           ))
         ) : (
           <div className="bg-card rounded-2xl p-8 text-center shadow-soft">
@@ -130,6 +159,14 @@ export default function Money() {
           </div>
         )}
       </section>
+
+      <DeleteConfirmDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+        onConfirm={confirmDelete}
+        title="Delete Entry"
+        description="Are you sure you want to delete this entry? This action cannot be undone."
+      />
     </MobileLayout>
   );
 }
