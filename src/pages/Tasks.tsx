@@ -6,14 +6,29 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Search, X, AlertTriangle } from 'lucide-react';
+import { Search, X, AlertTriangle, ArrowUpDown, Calendar, DollarSign, Users } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 type Filter = 'all' | 'pending' | 'completed' | 'overdue';
+type SortOption = 'newest' | 'dueDate' | 'amount' | 'client';
+
+const sortLabels: Record<SortOption, string> = {
+  newest: 'Newest',
+  dueDate: 'Due Date',
+  amount: 'Amount',
+  client: 'Client',
+};
 
 export default function Tasks() {
   const navigate = useNavigate();
   const { todos, clients } = useData();
   const [filter, setFilter] = useState<Filter>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -25,15 +40,18 @@ export default function Tasks() {
     }).length;
   }, [todos.todos]);
 
-  const filteredTodos = useMemo(() => {
-    let result = todos.todos;
+  const getClient = (clientId: string) =>
+    clients.clients.find(c => c.id === clientId);
+
+  const filteredAndSortedTodos = useMemo(() => {
+    let result = [...todos.todos];
     const now = new Date();
 
     // Apply search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       result = result.filter(todo => {
-        const client = clients.clients.find(c => c.id === todo.clientId);
+        const client = getClient(todo.clientId);
         return (
           todo.title.toLowerCase().includes(query) ||
           client?.name.toLowerCase().includes(query)
@@ -53,11 +71,28 @@ export default function Tasks() {
       });
     }
 
-    return result;
-  }, [todos.todos, clients.clients, searchQuery, filter]);
+    // Apply sorting
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'dueDate':
+          if (!a.dueDate && !b.dueDate) return 0;
+          if (!a.dueDate) return 1;
+          if (!b.dueDate) return -1;
+          return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+        case 'amount':
+          return (b.amount || 0) - (a.amount || 0);
+        case 'client':
+          const clientA = getClient(a.clientId)?.name || '';
+          const clientB = getClient(b.clientId)?.name || '';
+          return clientA.localeCompare(clientB);
+        case 'newest':
+        default:
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      }
+    });
 
-  const getClient = (clientId: string) =>
-    clients.clients.find(c => c.id === clientId)!;
+    return result;
+  }, [todos.todos, clients.clients, searchQuery, filter, sortBy]);
 
   const handleEdit = (id: string) => {
     navigate(`/tasks/${id}/edit`);
@@ -115,7 +150,7 @@ export default function Tasks() {
         </div>
       </div>
 
-      {/* Filters */}
+      {/* Filters & Sort */}
       <div className="px-5 mb-4">
         <div className="flex gap-2">
           <div className="flex gap-2 p-1 bg-muted rounded-xl flex-1">
@@ -134,6 +169,42 @@ export default function Tasks() {
               </button>
             ))}
           </div>
+          
+          {/* Sort Dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200",
+                  sortBy !== 'newest'
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <ArrowUpDown className="w-4 h-4" />
+                <span className="hidden sm:inline">{sortLabels[sortBy]}</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem onClick={() => setSortBy('newest')} className="gap-2">
+                <ArrowUpDown className="w-4 h-4" />
+                Newest
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortBy('dueDate')} className="gap-2">
+                <Calendar className="w-4 h-4" />
+                Due Date
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortBy('amount')} className="gap-2">
+                <DollarSign className="w-4 h-4" />
+                Amount
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortBy('client')} className="gap-2">
+                <Users className="w-4 h-4" />
+                Client
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
           {overdueCount > 0 && (
             <button
               onClick={() => setFilter(filter === 'overdue' ? 'all' : 'overdue')}
@@ -155,11 +226,11 @@ export default function Tasks() {
       <section className="px-5 pb-6 space-y-3">
         {searchQuery && (
           <p className="text-xs text-muted-foreground">
-            {filteredTodos.length} result{filteredTodos.length !== 1 ? 's' : ''} for "{searchQuery}"
+            {filteredAndSortedTodos.length} result{filteredAndSortedTodos.length !== 1 ? 's' : ''} for "{searchQuery}"
           </p>
         )}
-        {filteredTodos.length > 0 ? (
-          filteredTodos.map(todo => (
+        {filteredAndSortedTodos.length > 0 ? (
+          filteredAndSortedTodos.map(todo => (
             <div key={todo.id}>
               {/* Mobile - swipeable */}
               <div className="sm:hidden">
