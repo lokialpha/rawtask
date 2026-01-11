@@ -1,8 +1,9 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { useSettings, CURRENCIES, Currency } from '@/hooks/useSettings';
 import { useDataBackup } from '@/hooks/useDataBackup';
+import { useReportExport } from '@/hooks/useReportExport';
 import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
-import { Settings as SettingsIcon, DollarSign, Target, Check, BarChart3, ChevronRight, Sun, Moon, Monitor, Download, Upload, Database } from 'lucide-react';
+import { Settings as SettingsIcon, DollarSign, Target, Check, BarChart3, ChevronRight, Sun, Moon, Monitor, Download, Upload, Database, FileSpreadsheet, FileText } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -17,6 +18,7 @@ export default function Settings() {
   const { theme, setTheme } = useTheme();
   const { settings, updateCurrency, updateMonthlyGoal, formatCurrency } = useSettings();
   const { exportData, importData, getStats } = useDataBackup();
+  const { exportCSV, exportPDF, entriesCount } = useReportExport();
   const [goalInput, setGoalInput] = useState(settings.monthlyGoal.toString());
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
@@ -267,6 +269,49 @@ export default function Settings() {
           />
           <p className="text-2xs text-muted-foreground mt-3 text-center">
             Import will replace all existing data
+          </p>
+        </div>
+      </section>
+
+      {/* Financial Reports */}
+      <section className="px-5 mt-4">
+        <div className="bg-card rounded-2xl p-5 shadow-soft">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-income-soft rounded-xl flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-income" />
+            </div>
+            <div>
+              <h2 className="font-semibold">Financial Reports</h2>
+              <p className="text-xs text-muted-foreground">Download your financial data</p>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground mb-3">
+            Export {entriesCount} transactions as a report
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+              onClick={exportCSV}
+              disabled={entriesCount === 0}
+            >
+              <FileSpreadsheet className="w-4 h-4" />
+              CSV
+            </Button>
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+              onClick={exportPDF}
+              disabled={entriesCount === 0}
+            >
+              <FileText className="w-4 h-4" />
+              PDF
+            </Button>
+          </div>
+          <p className="text-2xs text-muted-foreground mt-3 text-center">
+            CSV for spreadsheets • PDF for printing
           </p>
         </div>
       </section>
