@@ -9,7 +9,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Search, X, AlertTriangle, ArrowUpDown, Calendar, DollarSign, Users, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, parseISO, isSameDay, addDays, subDays } from 'date-fns';
+import { format, parseISO, isSameDay, addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,7 +17,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-type Filter = 'all' | 'pending' | 'completed' | 'overdue' | 'date';
+type Filter = 'all' | 'pending' | 'completed' | 'overdue' | 'date' | 'dateRange';
+type DateRangePreset = 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth' | null;
 type SortOption = 'newest' | 'dueDate' | 'amount' | 'client';
 
 const sortLabels: Record<SortOption, string> = {
@@ -36,6 +37,8 @@ export default function Tasks() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<Date | null>(null);
+  const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>(null);
+  const [dateRange, setDateRange] = useState<{ start: Date; end: Date } | null>(null);
 
   // Read date filter from URL on mount
   useEffect(() => {
@@ -53,6 +56,8 @@ export default function Tasks() {
 
   const clearDateFilter = () => {
     setDateFilter(null);
+    setDateRange(null);
+    setDateRangePreset(null);
     setFilter('all');
     setSearchParams({});
   };
@@ -60,8 +65,56 @@ export default function Tasks() {
   const handleDateSelect = (date: Date | undefined) => {
     if (date) {
       setDateFilter(date);
+      setDateRange(null);
+      setDateRangePreset(null);
       setFilter('date');
       setSearchParams({ date: format(date, 'yyyy-MM-dd') });
+    }
+  };
+
+  const handlePresetSelect = (preset: DateRangePreset) => {
+    if (!preset) return;
+    
+    const today = new Date();
+    let start: Date;
+    let end: Date;
+    
+    switch (preset) {
+      case 'thisWeek':
+        start = startOfWeek(today, { weekStartsOn: 1 });
+        end = endOfWeek(today, { weekStartsOn: 1 });
+        break;
+      case 'lastWeek':
+        start = startOfWeek(subDays(today, 7), { weekStartsOn: 1 });
+        end = endOfWeek(subDays(today, 7), { weekStartsOn: 1 });
+        break;
+      case 'thisMonth':
+        start = startOfMonth(today);
+        end = endOfMonth(today);
+        break;
+      case 'lastMonth':
+        const lastMonth = subDays(startOfMonth(today), 1);
+        start = startOfMonth(lastMonth);
+        end = endOfMonth(lastMonth);
+        break;
+      default:
+        return;
+    }
+    
+    setDateRange({ start, end });
+    setDateRangePreset(preset);
+    setDateFilter(null);
+    setFilter('dateRange');
+    setSearchParams({ range: preset });
+  };
+
+  const getPresetLabel = (preset: DateRangePreset): string => {
+    switch (preset) {
+      case 'thisWeek': return 'This Week';
+      case 'lastWeek': return 'Last Week';
+      case 'thisMonth': return 'This Month';
+      case 'lastMonth': return 'Last Month';
+      default: return '';
     }
   };
 
@@ -107,6 +160,11 @@ export default function Tasks() {
         if (!t.dueDate) return false;
         return isSameDay(new Date(t.dueDate), dateFilter);
       });
+    } else if (filter === 'dateRange' && dateRange) {
+      result = result.filter(t => {
+        if (!t.dueDate) return false;
+        return isWithinInterval(new Date(t.dueDate), { start: dateRange.start, end: dateRange.end });
+      });
     }
 
     // Apply sorting
@@ -130,7 +188,7 @@ export default function Tasks() {
     });
 
     return result;
-  }, [todos.todos, clients.clients, searchQuery, filter, sortBy, dateFilter]);
+  }, [todos.todos, clients.clients, searchQuery, filter, sortBy, dateFilter, dateRange]);
 
   const handleEdit = (id: string) => {
     navigate(`/tasks/${id}/edit`);
@@ -167,13 +225,18 @@ export default function Tasks() {
       </header>
 
       {/* Date Filter Banner */}
-      {dateFilter && (
+      {(dateFilter || dateRange) && (
         <div className="px-5 mb-3">
           <div className="flex items-center justify-between p-3 bg-primary/10 border border-primary/20 rounded-xl">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium text-primary">
-                Showing tasks for {format(dateFilter, 'EEEE, MMM d')}
+                {dateFilter 
+                  ? `Showing tasks for ${format(dateFilter, 'EEEE, MMM d')}`
+                  : dateRangePreset 
+                    ? `Showing ${getPresetLabel(dateRangePreset)} (${format(dateRange!.start, 'MMM d')} - ${format(dateRange!.end, 'MMM d')})`
+                    : 'Filtered by date'
+                }
               </span>
             </div>
             <button
@@ -277,7 +340,12 @@ export default function Tasks() {
               >
                 <CalendarDays className="w-4 h-4" />
                 <span className="hidden sm:inline">
-                  {dateFilter ? format(dateFilter, 'MMM d') : 'Date'}
+                  {dateFilter 
+                    ? format(dateFilter, 'MMM d') 
+                    : dateRangePreset 
+                      ? getPresetLabel(dateRangePreset)
+                      : 'Date'
+                  }
                 </span>
               </button>
             </PopoverTrigger>
@@ -287,11 +355,16 @@ export default function Tasks() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => handleDateSelect(new Date())}
-                    className="flex-1 px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
+                    className={cn(
+                      "flex-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors",
+                      dateFilter && isSameDay(dateFilter, new Date())
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-primary/10 text-primary hover:bg-primary/20"
+                    )}
                   >
                     Today
                   </button>
-                  {dateFilter && (
+                  {(dateFilter || dateRange) && (
                     <button
                       onClick={() => clearDateFilter()}
                       className="px-3 py-1.5 text-xs font-medium bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors"
@@ -301,8 +374,26 @@ export default function Tasks() {
                   )}
                 </div>
                 
+                {/* Date Range Presets */}
+                <div className="grid grid-cols-2 gap-1.5">
+                  {(['thisWeek', 'lastWeek', 'thisMonth', 'lastMonth'] as DateRangePreset[]).map((preset) => (
+                    <button
+                      key={preset}
+                      onClick={() => handlePresetSelect(preset)}
+                      className={cn(
+                        "px-3 py-1.5 text-xs font-medium rounded-lg transition-colors",
+                        dateRangePreset === preset
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      {getPresetLabel(preset)}
+                    </button>
+                  ))}
+                </div>
+                
                 {/* Week navigation */}
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center justify-between gap-2 pt-1 border-t border-border">
                   <button
                     onClick={() => handleDateSelect(subDays(dateFilter || new Date(), 7))}
                     className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
