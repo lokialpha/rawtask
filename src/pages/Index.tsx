@@ -3,6 +3,7 @@ import { SummaryCard } from '@/components/ui/SummaryCard';
 import { TodoCard, TodoCardDesktop } from '@/components/todos/TodoCard';
 import { MoneyEntryCard } from '@/components/money/MoneyEntryCard';
 import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
+import { QuickAddTask } from '@/components/todos/QuickAddTask';
 import { useData } from '@/contexts/DataContext';
 import { useSettings } from '@/hooks/useSettings';
 import { TrendingUp, TrendingDown, Clock, Wallet } from 'lucide-react';
@@ -137,9 +138,12 @@ export default function Index() {
       <section className="px-5 mt-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-base font-semibold">Today's Tasks</h2>
-          <span className="text-xs text-muted-foreground">
-            {todayTodos.filter(t => t.completed).length}/{todayTodos.length} done
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">
+              {todayTodos.filter(t => t.completed).length}/{todayTodos.length} done
+            </span>
+            <QuickAddTask defaultDate={todayStr} />
+          </div>
         </div>
         
         <div className="space-y-3">
