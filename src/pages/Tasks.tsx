@@ -2,11 +2,12 @@ import { MobileLayout } from '@/components/layout/MobileLayout';
 import { TodoCard, TodoCardDesktop } from '@/components/todos/TodoCard';
 import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
 import { useData } from '@/contexts/DataContext';
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Search, X, AlertTriangle, ArrowUpDown, Calendar, DollarSign, Users } from 'lucide-react';
+import { format, parseISO, isSameDay } from 'date-fns';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-type Filter = 'all' | 'pending' | 'completed' | 'overdue';
+type Filter = 'all' | 'pending' | 'completed' | 'overdue' | 'date';
 type SortOption = 'newest' | 'dueDate' | 'amount' | 'client';
 
 const sortLabels: Record<SortOption, string> = {
@@ -26,11 +27,33 @@ const sortLabels: Record<SortOption, string> = {
 
 export default function Tasks() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { todos, clients } = useData();
   const [filter, setFilter] = useState<Filter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dateFilter, setDateFilter] = useState<Date | null>(null);
+
+  // Read date filter from URL on mount
+  useEffect(() => {
+    const dateParam = searchParams.get('date');
+    if (dateParam) {
+      try {
+        const parsedDate = parseISO(dateParam);
+        setDateFilter(parsedDate);
+        setFilter('date');
+      } catch {
+        // Invalid date, ignore
+      }
+    }
+  }, [searchParams]);
+
+  const clearDateFilter = () => {
+    setDateFilter(null);
+    setFilter('all');
+    setSearchParams({});
+  };
 
   const overdueCount = useMemo(() => {
     const now = new Date();
@@ -59,7 +82,7 @@ export default function Tasks() {
       });
     }
 
-    // Apply status filter
+    // Apply status/date filter
     if (filter === 'pending') {
       result = result.filter(t => !t.completed);
     } else if (filter === 'completed') {
@@ -68,6 +91,11 @@ export default function Tasks() {
       result = result.filter(t => {
         if (!t.completed || t.paymentStatus !== 'unpaid' || !t.dueDate) return false;
         return new Date(t.dueDate) < now;
+      });
+    } else if (filter === 'date' && dateFilter) {
+      result = result.filter(t => {
+        if (!t.dueDate) return false;
+        return isSameDay(new Date(t.dueDate), dateFilter);
       });
     }
 
@@ -92,7 +120,7 @@ export default function Tasks() {
     });
 
     return result;
-  }, [todos.todos, clients.clients, searchQuery, filter, sortBy]);
+  }, [todos.todos, clients.clients, searchQuery, filter, sortBy, dateFilter]);
 
   const handleEdit = (id: string) => {
     navigate(`/tasks/${id}/edit`);
@@ -127,6 +155,27 @@ export default function Tasks() {
           Swipe left on a task to edit or delete
         </p>
       </header>
+
+      {/* Date Filter Banner */}
+      {dateFilter && (
+        <div className="px-5 mb-3">
+          <div className="flex items-center justify-between p-3 bg-primary/10 border border-primary/20 rounded-xl">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium text-primary">
+                Showing tasks for {format(dateFilter, 'EEEE, MMM d')}
+              </span>
+            </div>
+            <button
+              onClick={clearDateFilter}
+              className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+            >
+              <X className="w-3 h-3" />
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Search Bar */}
       <div className="px-5 mb-3">
