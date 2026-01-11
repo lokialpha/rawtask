@@ -1,13 +1,19 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { SummaryCard } from '@/components/ui/SummaryCard';
-import { TodoCard } from '@/components/todos/TodoCard';
+import { TodoCard, TodoCardDesktop } from '@/components/todos/TodoCard';
 import { MoneyEntryCard } from '@/components/money/MoneyEntryCard';
+import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
 import { useData } from '@/contexts/DataContext';
 import { TrendingUp, TrendingDown, Clock, Wallet } from 'lucide-react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export default function Index() {
+  const navigate = useNavigate();
   const { todos, money, clients } = useData();
+  const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+  const [deleteMoneyId, setDeleteMoneyId] = useState<string | null>(null);
   
   const today = new Date();
   const formattedDate = today.toLocaleDateString('en-US', {
@@ -47,6 +53,38 @@ export default function Index() {
 
   const getClient = (clientId: string) =>
     clients.clients.find(c => c.id === clientId)!;
+
+  const handleEditTask = (id: string) => {
+    navigate(`/tasks/${id}/edit`);
+  };
+
+  const handleDeleteTask = (id: string) => {
+    setDeleteTaskId(id);
+  };
+
+  const confirmDeleteTask = () => {
+    if (deleteTaskId) {
+      todos.deleteTodo(deleteTaskId);
+      toast.success('Task deleted');
+      setDeleteTaskId(null);
+    }
+  };
+
+  const handleEditMoney = (id: string) => {
+    navigate(`/money/${id}/edit`);
+  };
+
+  const handleDeleteMoney = (id: string) => {
+    setDeleteMoneyId(id);
+  };
+
+  const confirmDeleteMoney = () => {
+    if (deleteMoneyId) {
+      money.deleteEntry(deleteMoneyId);
+      toast.success('Entry deleted');
+      setDeleteMoneyId(null);
+    }
+  };
 
   return (
     <MobileLayout>
@@ -104,12 +142,28 @@ export default function Index() {
         <div className="space-y-3">
           {todayTodos.length > 0 ? (
             todayTodos.map(todo => (
-              <TodoCard
-                key={todo.id}
-                todo={todo}
-                client={getClient(todo.clientId)}
-                onToggle={todos.toggleTodo}
-              />
+              <div key={todo.id}>
+                {/* Mobile - swipeable */}
+                <div className="sm:hidden">
+                  <TodoCard
+                    todo={todo}
+                    client={getClient(todo.clientId)}
+                    onToggle={todos.toggleTodo}
+                    onEdit={handleEditTask}
+                    onDelete={handleDeleteTask}
+                  />
+                </div>
+                {/* Desktop - action buttons */}
+                <div className="hidden sm:block">
+                  <TodoCardDesktop
+                    todo={todo}
+                    client={getClient(todo.clientId)}
+                    onToggle={todos.toggleTodo}
+                    onEdit={handleEditTask}
+                    onDelete={handleDeleteTask}
+                  />
+                </div>
+              </div>
             ))
           ) : (
             <div className="bg-card rounded-2xl p-6 text-center shadow-soft">
@@ -132,7 +186,12 @@ export default function Index() {
         <div className="space-y-3">
           {todayMoney.length > 0 ? (
             todayMoney.map(entry => (
-              <MoneyEntryCard key={entry.id} entry={entry} />
+              <MoneyEntryCard
+                key={entry.id}
+                entry={entry}
+                onEdit={handleEditMoney}
+                onDelete={handleDeleteMoney}
+              />
             ))
           ) : (
             <div className="bg-card rounded-2xl p-6 text-center shadow-soft">
@@ -141,6 +200,22 @@ export default function Index() {
           )}
         </div>
       </section>
+
+      <DeleteConfirmDialog
+        open={!!deleteTaskId}
+        onOpenChange={(open) => !open && setDeleteTaskId(null)}
+        onConfirm={confirmDeleteTask}
+        title="Delete Task"
+        description="Are you sure you want to delete this task? This action cannot be undone."
+      />
+
+      <DeleteConfirmDialog
+        open={!!deleteMoneyId}
+        onOpenChange={(open) => !open && setDeleteMoneyId(null)}
+        onConfirm={confirmDeleteMoney}
+        title="Delete Entry"
+        description="Are you sure you want to delete this entry? This action cannot be undone."
+      />
     </MobileLayout>
   );
 }

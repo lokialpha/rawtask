@@ -11,6 +11,8 @@ import Clients from "./pages/Clients";
 import Stats from "./pages/Stats";
 import AddTask from "./pages/AddTask";
 import AddMoney from "./pages/AddMoney";
+import EditTask from "./pages/EditTask";
+import EditMoney from "./pages/EditMoney";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,8 +28,10 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/tasks/new" element={<AddTask />} />
+            <Route path="/tasks/:id/edit" element={<EditTask />} />
             <Route path="/money" element={<Money />} />
             <Route path="/money/new" element={<AddMoney />} />
+            <Route path="/money/:id/edit" element={<EditMoney />} />
             <Route path="/clients" element={<Clients />} />
             <Route path="/stats" element={<Stats />} />
             <Route path="*" element={<NotFound />} />

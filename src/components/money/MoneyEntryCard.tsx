@@ -1,15 +1,19 @@
 import { cn } from '@/lib/utils';
 import { MoneyEntry } from '@/types';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { SwipeableCard } from '@/components/ui/SwipeableCard';
+import { TrendingUp, TrendingDown, Pencil, Trash2 } from 'lucide-react';
 
 interface MoneyEntryCardProps {
   entry: MoneyEntry;
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  showActions?: boolean;
 }
 
-export function MoneyEntryCard({ entry }: MoneyEntryCardProps) {
+export function MoneyEntryCard({ entry, onEdit, onDelete, showActions = true }: MoneyEntryCardProps) {
   const isIncome = entry.type === 'income';
 
-  return (
+  const cardContent = (
     <div className="bg-card rounded-2xl p-4 shadow-soft">
       <div className="flex items-center gap-3">
         {/* Icon */}
@@ -43,7 +47,47 @@ export function MoneyEntryCard({ entry }: MoneyEntryCardProps) {
         >
           {isIncome ? '+' : '-'}${entry.amount}
         </p>
+
+        {/* Desktop action buttons */}
+        {showActions && (
+          <div className="hidden sm:flex items-center gap-1 ml-2">
+            <button
+              onClick={() => onEdit?.(entry.id)}
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+            >
+              <Pencil className="w-4 h-4 text-muted-foreground" />
+            </button>
+            <button
+              onClick={() => onDelete?.(entry.id)}
+              className="p-2 rounded-lg hover:bg-expense-soft transition-colors"
+            >
+              <Trash2 className="w-4 h-4 text-expense" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
+  );
+
+  if (!showActions) {
+    return cardContent;
+  }
+
+  return (
+    <>
+      {/* Mobile with swipe */}
+      <div className="sm:hidden">
+        <SwipeableCard
+          onEdit={() => onEdit?.(entry.id)}
+          onDelete={() => onDelete?.(entry.id)}
+        >
+          {cardContent}
+        </SwipeableCard>
+      </div>
+      {/* Desktop without swipe */}
+      <div className="hidden sm:block">
+        {cardContent}
+      </div>
+    </>
   );
 }
