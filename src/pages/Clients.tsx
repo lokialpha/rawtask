@@ -1,5 +1,5 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
-import { mockClients, mockTodos, mockMoneyEntries } from '@/data/mockData';
+import { useData } from '@/contexts/DataContext';
 import { cn } from '@/lib/utils';
 import { ChevronRight, CheckCircle2, Clock, TrendingUp } from 'lucide-react';
 
@@ -20,21 +20,23 @@ const bgColorMap = {
 };
 
 export default function Clients() {
-  const clientStats = mockClients.map(client => {
-    const todos = mockTodos.filter(t => t.clientId === client.id);
-    const completed = todos.filter(t => t.completed).length;
-    const unpaid = todos.filter(t => t.paymentStatus === 'unpaid' && t.completed).length;
+  const { clients, todos, money } = useData();
+
+  const clientStats = clients.clients.map(client => {
+    const clientTodos = todos.todos.filter(t => t.clientId === client.id);
+    const completed = clientTodos.filter(t => t.completed).length;
+    const unpaid = clientTodos.filter(t => t.paymentStatus === 'unpaid' && t.completed).length;
     
-    const income = mockMoneyEntries
+    const income = money.entries
       .filter(m => {
-        const linkedTodo = mockTodos.find(t => t.id === m.linkedTodoId);
+        const linkedTodo = todos.todos.find(t => t.id === m.linkedTodoId);
         return linkedTodo?.clientId === client.id && m.type === 'income';
       })
       .reduce((sum, m) => sum + m.amount, 0);
 
     return {
       ...client,
-      totalTasks: todos.length,
+      totalTasks: clientTodos.length,
       completed,
       unpaid,
       income,
@@ -46,7 +48,7 @@ export default function Clients() {
       <header className="px-5 pt-6 pb-4 safe-top">
         <h1 className="text-2xl font-bold">Clients</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {mockClients.length} active clients
+          {clients.clients.length} active clients
         </p>
       </header>
 

@@ -1,14 +1,17 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
+import { useData } from '@/contexts/DataContext';
 import { incomeCategories, expenseCategories } from '@/data/mockData';
 import { ArrowLeft, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 type MoneyType = 'income' | 'expense';
 
 export default function AddMoney() {
   const navigate = useNavigate();
+  const { money } = useData();
   const [type, setType] = useState<MoneyType>('income');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('');
@@ -19,7 +22,16 @@ export default function AddMoney() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would save to state/database
+    
+    money.addEntry({
+      type,
+      amount: parseFloat(amount),
+      category,
+      date,
+      description: description || undefined,
+    });
+    
+    toast.success(`${type === 'income' ? 'Income' : 'Expense'} added successfully!`);
     navigate('/money');
   };
 

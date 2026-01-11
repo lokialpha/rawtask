@@ -1,23 +1,25 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { SummaryCard } from '@/components/ui/SummaryCard';
-import { mockMoneyEntries, mockTodos } from '@/data/mockData';
+import { useData } from '@/contexts/DataContext';
 import { TrendingUp, TrendingDown, Target, CheckCircle2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 
 export default function Stats() {
+  const { todos, money } = useData();
+
   const stats = useMemo(() => {
-    const income = mockMoneyEntries
+    const income = money.entries
       .filter(m => m.type === 'income')
       .reduce((sum, m) => sum + m.amount, 0);
     
-    const expense = mockMoneyEntries
+    const expense = money.entries
       .filter(m => m.type === 'expense')
       .reduce((sum, m) => sum + m.amount, 0);
 
-    const completedTasks = mockTodos.filter(t => t.completed).length;
-    const paidTasks = mockTodos.filter(t => t.paymentStatus === 'paid').length;
-    const unpaidTasks = mockTodos.filter(
+    const completedTasks = todos.todos.filter(t => t.completed).length;
+    const paidTasks = todos.todos.filter(t => t.paymentStatus === 'paid').length;
+    const unpaidTasks = todos.todos.filter(
       t => t.paymentStatus === 'unpaid' && t.completed
     ).length;
 
@@ -34,7 +36,7 @@ export default function Stats() {
       monthlyGoal,
       progress,
     };
-  }, []);
+  }, [todos.todos, money.entries]);
 
   // Simple bar chart data
   const chartData = [

@@ -1,13 +1,15 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
-import { mockClients } from '@/data/mockData';
+import { useData } from '@/contexts/DataContext';
 import { ArrowLeft, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { PaymentStatus } from '@/types';
+import { toast } from 'sonner';
 
 export default function AddTask() {
   const navigate = useNavigate();
+  const { todos, clients } = useData();
   const [title, setTitle] = useState('');
   const [clientId, setClientId] = useState('');
   const [dueDate, setDueDate] = useState(new Date().toISOString().split('T')[0]);
@@ -16,7 +18,17 @@ export default function AddTask() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, this would save to state/database
+    
+    todos.addTodo({
+      title,
+      clientId,
+      dueDate,
+      paymentStatus,
+      amount: amount ? parseFloat(amount) : undefined,
+      completed: false,
+    });
+    
+    toast.success('Task created successfully!');
     navigate('/tasks');
   };
 
@@ -62,7 +74,7 @@ export default function AddTask() {
             required
           >
             <option value="">Select a client</option>
-            {mockClients.map(client => (
+            {clients.clients.map(client => (
               <option key={client.id} value={client.id}>
                 {client.name}
               </option>

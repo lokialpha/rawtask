@@ -2,12 +2,12 @@ import { MobileLayout } from '@/components/layout/MobileLayout';
 import { SummaryCard } from '@/components/ui/SummaryCard';
 import { TodoCard } from '@/components/todos/TodoCard';
 import { MoneyEntryCard } from '@/components/money/MoneyEntryCard';
-import { mockTodos, mockMoneyEntries, mockClients } from '@/data/mockData';
+import { useData } from '@/contexts/DataContext';
 import { TrendingUp, TrendingDown, Clock, Wallet } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
 export default function Index() {
-  const [todos, setTodos] = useState(mockTodos);
+  const { todos, money, clients } = useData();
   
   const today = new Date();
   const formattedDate = today.toLocaleDateString('en-US', {
@@ -19,13 +19,13 @@ export default function Index() {
   const todayStr = today.toISOString().split('T')[0];
 
   const todayTodos = useMemo(() => 
-    todos.filter(t => t.dueDate === todayStr),
-    [todos, todayStr]
+    todos.todos.filter(t => t.dueDate === todayStr),
+    [todos.todos, todayStr]
   );
 
   const todayMoney = useMemo(() =>
-    mockMoneyEntries.filter(m => m.date === todayStr),
-    [todayStr]
+    money.entries.filter(m => m.date === todayStr),
+    [money.entries, todayStr]
   );
 
   const summary = useMemo(() => {
@@ -37,22 +37,16 @@ export default function Index() {
       .filter(m => m.type === 'expense')
       .reduce((sum, m) => sum + m.amount, 0);
     
-    const unpaidTasks = todos.filter(
+    const unpaidTasks = todos.todos.filter(
       t => t.paymentStatus === 'unpaid' && t.completed
     );
     const pendingAmount = unpaidTasks.reduce((sum, t) => sum + (t.amount || 0), 0);
 
     return { income, expense, pendingCount: unpaidTasks.length, pendingAmount };
-  }, [todayMoney, todos]);
-
-  const toggleTodo = (id: string) => {
-    setTodos(prev =>
-      prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t))
-    );
-  };
+  }, [todayMoney, todos.todos]);
 
   const getClient = (clientId: string) =>
-    mockClients.find(c => c.id === clientId)!;
+    clients.clients.find(c => c.id === clientId)!;
 
   return (
     <MobileLayout>
@@ -114,7 +108,7 @@ export default function Index() {
                 key={todo.id}
                 todo={todo}
                 client={getClient(todo.clientId)}
-                onToggle={toggleTodo}
+                onToggle={todos.toggleTodo}
               />
             ))
           ) : (
