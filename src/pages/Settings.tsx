@@ -1,17 +1,25 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { useSettings, CURRENCIES, Currency } from '@/hooks/useSettings';
-import { Settings as SettingsIcon, DollarSign, Target, Check, BarChart3, ChevronRight } from 'lucide-react';
+import { Settings as SettingsIcon, DollarSign, Target, Check, BarChart3, ChevronRight, Sun, Moon, Monitor } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { useTheme } from 'next-themes';
 
 export default function Settings() {
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
   const { settings, updateCurrency, updateMonthlyGoal, formatCurrency } = useSettings();
   const [goalInput, setGoalInput] = useState(settings.monthlyGoal.toString());
+
+  const themeOptions = [
+    { value: 'light', label: 'Light', icon: Sun },
+    { value: 'dark', label: 'Dark', icon: Moon },
+    { value: 'system', label: 'System', icon: Monitor },
+  ];
 
   const handleCurrencySelect = (currency: Currency) => {
     updateCurrency(currency);
@@ -50,8 +58,48 @@ export default function Settings() {
         </div>
       </header>
 
-      {/* Monthly Goal */}
+      {/* Theme Selection */}
       <section className="px-5 mt-2">
+        <div className="bg-card rounded-2xl p-5 shadow-soft">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center">
+              <Sun className="w-5 h-5 text-secondary-foreground" />
+            </div>
+            <div>
+              <h2 className="font-semibold">Appearance</h2>
+              <p className="text-xs text-muted-foreground">Choose your preferred theme</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            {themeOptions.map((option) => {
+              const isSelected = theme === option.value;
+              const Icon = option.icon;
+              return (
+                <button
+                  key={option.value}
+                  onClick={() => {
+                    setTheme(option.value);
+                    toast.success(`Theme changed to ${option.label}`);
+                  }}
+                  className={cn(
+                    "flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all",
+                    isSelected
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  )}
+                >
+                  <Icon className={cn("w-5 h-5", isSelected ? "text-primary" : "text-muted-foreground")} />
+                  <span className="text-sm font-medium">{option.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* Monthly Goal */}
+      <section className="px-5 mt-4">
         <div className="bg-card rounded-2xl p-5 shadow-soft">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-income-soft rounded-xl flex items-center justify-center">
