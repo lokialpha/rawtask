@@ -1,6 +1,7 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { useSettings, CURRENCIES, Currency } from '@/hooks/useSettings';
 import { useDataBackup } from '@/hooks/useDataBackup';
+import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
 import { Settings as SettingsIcon, DollarSign, Target, Check, BarChart3, ChevronRight, Sun, Moon, Monitor, Download, Upload, Database } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,18 +18,34 @@ export default function Settings() {
   const { settings, updateCurrency, updateMonthlyGoal, formatCurrency } = useSettings();
   const { exportData, importData, getStats } = useDataBackup();
   const [goalInput, setGoalInput] = useState(settings.monthlyGoal.toString());
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [showImportConfirm, setShowImportConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const stats = getStats();
 
-  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      importData(file);
+      setPendingFile(file);
+      setShowImportConfirm(true);
     }
     // Reset input so same file can be selected again
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const confirmImport = () => {
+    if (pendingFile) {
+      importData(pendingFile);
+      setPendingFile(null);
+    }
+    setShowImportConfirm(false);
+  };
+
+  const cancelImport = () => {
+    setPendingFile(null);
+    setShowImportConfirm(false);
   };
 
   const themeOptions = [
@@ -245,7 +262,7 @@ export default function Settings() {
             ref={fileInputRef}
             type="file"
             accept=".json"
-            onChange={handleFileImport}
+            onChange={handleFileSelect}
             className="hidden"
           />
           <p className="text-2xs text-muted-foreground mt-3 text-center">
@@ -274,6 +291,14 @@ export default function Settings() {
           </button>
         </div>
       </section>
+
+      <DeleteConfirmDialog
+        open={showImportConfirm}
+        onOpenChange={(open) => !open && cancelImport()}
+        onConfirm={confirmImport}
+        title="Import Data"
+        description={`This will replace all your existing data (${stats.clientsCount} clients, ${stats.todosCount} tasks, ${stats.moneyEntriesCount} entries) with the backup file. This action cannot be undone. Are you sure?`}
+      />
     </MobileLayout>
   );
 }
