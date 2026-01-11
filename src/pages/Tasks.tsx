@@ -1,12 +1,14 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { TodoCard, TodoCardDesktop } from '@/components/todos/TodoCard';
 import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useData } from '@/contexts/DataContext';
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Search, X, AlertTriangle, ArrowUpDown, Calendar, DollarSign, Users } from 'lucide-react';
+import { Search, X, AlertTriangle, ArrowUpDown, Calendar, DollarSign, Users, CalendarDays } from 'lucide-react';
 import { format, parseISO, isSameDay } from 'date-fns';
 import {
   DropdownMenu,
@@ -53,6 +55,14 @@ export default function Tasks() {
     setDateFilter(null);
     setFilter('all');
     setSearchParams({});
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    if (date) {
+      setDateFilter(date);
+      setFilter('date');
+      setSearchParams({ date: format(date, 'yyyy-MM-dd') });
+    }
   };
 
   const overdueCount = useMemo(() => {
@@ -253,6 +263,34 @@ export default function Tasks() {
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {/* Date Picker */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200",
+                  dateFilter
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <CalendarDays className="w-4 h-4" />
+                <span className="hidden sm:inline">
+                  {dateFilter ? format(dateFilter, 'MMM d') : 'Date'}
+                </span>
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end">
+              <CalendarComponent
+                mode="single"
+                selected={dateFilter || undefined}
+                onSelect={handleDateSelect}
+                initialFocus
+                className="p-3 pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
           
           {overdueCount > 0 && (
             <button
