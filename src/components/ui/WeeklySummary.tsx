@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { CheckCircle2, TrendingUp, Calendar, Target, ChevronDown, Flame } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import { CheckCircle2, TrendingUp, Calendar, Target, ChevronDown, Flame, Trophy, Star, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format, isWithinInterval, eachDayOfInterval, isSameDay, subDays } from 'date-fns';
 import {
@@ -7,6 +7,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { toast } from 'sonner';
 
 interface Todo {
   id: string;
@@ -28,6 +29,24 @@ interface WeeklySummaryProps {
   moneyEntries: MoneyEntry[];
   formatCurrency: (amount: number) => string;
   monthlyGoal?: number;
+}
+
+// Milestone definitions
+const MILESTONES = [
+  { days: 7, emoji: '🔥', title: '1 Week Streak!', message: 'You completed tasks 7 days in a row!', icon: Flame },
+  { days: 14, emoji: '⚡', title: '2 Week Streak!', message: 'Two weeks of consistent productivity!', icon: Zap },
+  { days: 30, emoji: '🏆', title: '1 Month Streak!', message: 'Incredible! A full month of daily progress!', icon: Trophy },
+  { days: 60, emoji: '⭐', title: '2 Month Streak!', message: 'You\'re unstoppable! 60 days strong!', icon: Star },
+  { days: 90, emoji: '👑', title: '3 Month Streak!', message: 'Legendary dedication! 90 days!', icon: Trophy },
+];
+
+function getMilestone(streak: number) {
+  // Find the highest milestone achieved
+  return MILESTONES.filter(m => streak >= m.days).pop();
+}
+
+function getNextMilestone(streak: number) {
+  return MILESTONES.find(m => m.days > streak);
 }
 
 // Calculate current streak of consecutive days with completed tasks
@@ -84,8 +103,37 @@ function calculateStreak(todos: Todo[]): { current: number; best: number } {
 
 export function WeeklySummary({ todos, moneyEntries, formatCurrency, monthlyGoal = 0 }: WeeklySummaryProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [celebratedMilestone, setCelebratedMilestone] = useState<number | null>(null);
 
   const streak = useMemo(() => calculateStreak(todos), [todos]);
+  const currentMilestone = getMilestone(streak.current);
+  const nextMilestone = getNextMilestone(streak.current);
+
+  // Celebrate milestone achievements
+  useEffect(() => {
+    if (currentMilestone && celebratedMilestone !== currentMilestone.days) {
+      // Check localStorage to see if we've already celebrated this milestone
+      const celebratedKey = `streak-celebrated-${currentMilestone.days}`;
+      const alreadyCelebrated = localStorage.getItem(celebratedKey);
+      
+      if (!alreadyCelebrated) {
+        // Show celebration toast
+        toast.success(
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{currentMilestone.emoji}</span>
+            <div>
+              <p className="font-bold">{currentMilestone.title}</p>
+              <p className="text-sm text-muted-foreground">{currentMilestone.message}</p>
+            </div>
+          </div>,
+          { duration: 5000 }
+        );
+        
+        localStorage.setItem(celebratedKey, 'true');
+        setCelebratedMilestone(currentMilestone.days);
+      }
+    }
+  }, [currentMilestone, celebratedMilestone]);
 
   const weekData = useMemo(() => {
     const today = new Date();
@@ -219,25 +267,48 @@ export function WeeklySummary({ todos, moneyEntries, formatCurrency, monthlyGoal
           </div>
           {streak.current > 0 && (
             <div className={cn(
-              "rounded-xl p-3",
-              streak.current >= 7 
+              "rounded-xl p-3 relative overflow-hidden",
+              currentMilestone 
                 ? "bg-gradient-to-br from-orange-500/20 to-red-500/20 border border-orange-500/30"
                 : "bg-orange-100/50 dark:bg-orange-900/20"
             )}>
+              {/* Milestone badge */}
+              {currentMilestone && (
+                <div className="absolute -top-1 -right-1 text-lg">
+                  {currentMilestone.emoji}
+                </div>
+              )}
               <div className="flex items-center gap-2 mb-1">
-                <Flame className={cn(
-                  "w-3.5 h-3.5",
-                  streak.current >= 7 ? "text-orange-500" : "text-orange-500"
-                )} />
+                {currentMilestone ? (
+                  <currentMilestone.icon className="w-3.5 h-3.5 text-orange-500 animate-pulse" />
+                ) : (
+                  <Flame className="w-3.5 h-3.5 text-orange-500" />
+                )}
                 <span className="text-xs text-muted-foreground">Streak</span>
               </div>
               <p className={cn(
                 "text-lg font-bold",
-                streak.current >= 7 ? "text-orange-500" : "text-orange-600 dark:text-orange-400"
+                currentMilestone ? "text-orange-500" : "text-orange-600 dark:text-orange-400"
               )}>
                 {streak.current} day{streak.current !== 1 ? 's' : ''}
               </p>
-              {streak.best > streak.current && (
+              {nextMilestone && (
+                <div className="mt-1.5">
+                  <div className="flex items-center justify-between text-2xs text-muted-foreground mb-1">
+                    <span>Next: {nextMilestone.emoji} {nextMilestone.days}d</span>
+                    <span>{nextMilestone.days - streak.current} to go</span>
+                  </div>
+                  <div className="h-1 bg-muted rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-gradient-to-r from-orange-400 to-orange-600 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${((streak.current - (getMilestone(streak.current)?.days || 0)) / (nextMilestone.days - (getMilestone(streak.current)?.days || 0))) * 100}%` 
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+              {streak.best > streak.current && !nextMilestone && (
                 <p className="text-2xs text-muted-foreground mt-0.5">
                   Best: {streak.best} days
                 </p>
