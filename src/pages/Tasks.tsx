@@ -8,8 +8,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Search, X, AlertTriangle, ArrowUpDown, Calendar, DollarSign, Users, CalendarDays } from 'lucide-react';
-import { format, parseISO, isSameDay } from 'date-fns';
+import { Search, X, AlertTriangle, ArrowUpDown, Calendar, DollarSign, Users, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, parseISO, isSameDay, addDays, subDays } from 'date-fns';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -282,21 +282,45 @@ export default function Tasks() {
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="end">
-              <div className="p-2 border-b border-border flex gap-2">
-                <button
-                  onClick={() => handleDateSelect(new Date())}
-                  className="flex-1 px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
-                >
-                  Today
-                </button>
-                {dateFilter && (
+              <div className="p-2 border-b border-border space-y-2">
+                {/* Quick actions */}
+                <div className="flex gap-2">
                   <button
-                    onClick={() => clearDateFilter()}
-                    className="px-3 py-1.5 text-xs font-medium bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors"
+                    onClick={() => handleDateSelect(new Date())}
+                    className="flex-1 px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
                   >
-                    Clear
+                    Today
                   </button>
-                )}
+                  {dateFilter && (
+                    <button
+                      onClick={() => clearDateFilter()}
+                      className="px-3 py-1.5 text-xs font-medium bg-muted text-muted-foreground rounded-lg hover:bg-muted/80 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                
+                {/* Week navigation */}
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    onClick={() => handleDateSelect(subDays(dateFilter || new Date(), 7))}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+                  >
+                    <ChevronLeft className="w-3 h-3" />
+                    <span>Prev week</span>
+                  </button>
+                  <span className="text-xs text-muted-foreground">
+                    {dateFilter ? format(dateFilter, 'MMM d') : 'Select date'}
+                  </span>
+                  <button
+                    onClick={() => handleDateSelect(addDays(dateFilter || new Date(), 7))}
+                    className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+                  >
+                    <span>Next week</span>
+                    <ChevronRight className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
               <CalendarComponent
                 mode="single"
