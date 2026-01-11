@@ -83,6 +83,22 @@ export default function Stats() {
       .sort((a, b) => b.value - a.value);
   }, [money.entries]);
 
+  // Income breakdown by category
+  const incomeByCategory = useMemo(() => {
+    const categoryMap: Record<string, number> = {};
+    
+    money.entries
+      .filter(e => e.type === 'income')
+      .forEach(e => {
+        const category = e.category || 'Other';
+        categoryMap[category] = (categoryMap[category] || 0) + e.amount;
+      });
+    
+    return Object.entries(categoryMap)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [money.entries]);
+
   const EXPENSE_COLORS = [
     'hsl(0, 84%, 60%)',
     'hsl(25, 95%, 53%)',
@@ -92,6 +108,17 @@ export default function Stats() {
     'hsl(142, 71%, 45%)',
     'hsl(330, 81%, 60%)',
     'hsl(210, 40%, 50%)',
+  ];
+
+  const INCOME_COLORS = [
+    'hsl(142, 71%, 45%)',
+    'hsl(160, 84%, 39%)',
+    'hsl(175, 77%, 40%)',
+    'hsl(199, 89%, 48%)',
+    'hsl(215, 90%, 52%)',
+    'hsl(230, 80%, 60%)',
+    'hsl(262, 83%, 58%)',
+    'hsl(280, 70%, 55%)',
   ];
 
   // Simple bar chart data
@@ -233,26 +260,79 @@ export default function Stats() {
         </div>
       </section>
 
-      {/* Expense Breakdown Pie Chart */}
-      {expenseByCategory.length > 0 && (
-        <section className="px-5 mt-6">
-          <h2 className="text-base font-semibold mb-4">Expense Breakdown</h2>
+      {/* Breakdown Charts */}
+      <section className="px-5 mt-6 grid grid-cols-1 gap-4">
+        {/* Income Breakdown Pie Chart */}
+        {incomeByCategory.length > 0 && (
           <div className="bg-card rounded-2xl p-5 shadow-soft">
+            <h3 className="text-sm font-semibold mb-4 text-income">Income Breakdown</h3>
             <div className="flex items-center gap-4">
-              <div className="w-[140px] h-[140px] flex-shrink-0">
+              <div className="w-[120px] h-[120px] flex-shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={incomeByCategory}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={30}
+                      outerRadius={50}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {incomeByCategory.map((_, index) => (
+                        <Cell key={`income-cell-${index}`} fill={INCOME_COLORS[index % INCOME_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      }}
+                      formatter={(value: number) => [formatCurrency(value)]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex-1 space-y-2 overflow-hidden">
+                {incomeByCategory.slice(0, 5).map((item, index) => (
+                  <div key={item.name} className="flex items-center gap-2">
+                    <div 
+                      className="w-3 h-3 rounded-full flex-shrink-0" 
+                      style={{ backgroundColor: INCOME_COLORS[index % INCOME_COLORS.length] }}
+                    />
+                    <span className="text-xs text-muted-foreground truncate flex-1">{item.name}</span>
+                    <span className="text-xs font-medium">{formatCurrency(item.value)}</span>
+                  </div>
+                ))}
+                {incomeByCategory.length > 5 && (
+                  <p className="text-xs text-muted-foreground">+{incomeByCategory.length - 5} more</p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Expense Breakdown Pie Chart */}
+        {expenseByCategory.length > 0 && (
+          <div className="bg-card rounded-2xl p-5 shadow-soft">
+            <h3 className="text-sm font-semibold mb-4 text-expense">Expense Breakdown</h3>
+            <div className="flex items-center gap-4">
+              <div className="w-[120px] h-[120px] flex-shrink-0">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={expenseByCategory}
                       cx="50%"
                       cy="50%"
-                      innerRadius={35}
-                      outerRadius={60}
+                      innerRadius={30}
+                      outerRadius={50}
                       paddingAngle={2}
                       dataKey="value"
                     >
                       {expenseByCategory.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={EXPENSE_COLORS[index % EXPENSE_COLORS.length]} />
+                        <Cell key={`expense-cell-${index}`} fill={EXPENSE_COLORS[index % EXPENSE_COLORS.length]} />
                       ))}
                     </Pie>
                     <Tooltip
@@ -284,8 +364,8 @@ export default function Stats() {
               </div>
             </div>
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
       {/* Task Stats */}
       <section className="px-5 mt-6 pb-6">
