@@ -91,7 +91,8 @@ export default function Clients() {
         {clientStats.map(client => (
           <div
             key={client.id}
-            className="bg-card rounded-2xl p-4 shadow-soft group"
+            className="bg-card rounded-2xl p-4 shadow-soft group cursor-pointer active:scale-[0.98] transition-transform"
+            onClick={() => navigate(`/clients/${client.id}`)}
           >
             <div className="flex items-center gap-3">
               {/* Avatar */}
@@ -147,13 +148,19 @@ export default function Clients() {
               {/* Action Buttons */}
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity sm:opacity-100">
                 <button
-                  onClick={() => navigate(`/clients/${client.id}/edit`)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(`/clients/${client.id}/edit`);
+                  }}
                   className="w-9 h-9 rounded-xl bg-muted/80 hover:bg-muted flex items-center justify-center transition-colors"
                 >
                   <Pencil className="w-4 h-4 text-muted-foreground" />
                 </button>
                 <button
-                  onClick={() => handleDelete(client.id)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(client.id);
+                  }}
                   className="w-9 h-9 rounded-xl bg-expense-soft hover:bg-expense/20 flex items-center justify-center transition-colors"
                 >
                   <Trash2 className="w-4 h-4 text-expense" />
