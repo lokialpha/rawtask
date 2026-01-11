@@ -2,6 +2,7 @@ import { MobileLayout } from '@/components/layout/MobileLayout';
 import { SummaryCard } from '@/components/ui/SummaryCard';
 import { OverdueAlertBanner } from '@/components/ui/OverdueAlertBanner';
 import { WeeklySummary } from '@/components/ui/WeeklySummary';
+import { MiniCalendar } from '@/components/ui/MiniCalendar';
 import { TodoCard, TodoCardDesktop } from '@/components/todos/TodoCard';
 import { MoneyEntryCard } from '@/components/money/MoneyEntryCard';
 import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
@@ -12,6 +13,7 @@ import { TrendingUp, TrendingDown, Clock, Wallet } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 export default function Index() {
   const navigate = useNavigate();
@@ -145,6 +147,14 @@ export default function Index() {
           moneyEntries={money.entries}
           formatCurrency={formatCurrency}
           monthlyGoal={settings.monthlyGoal}
+        />
+      </section>
+
+      {/* Mini Calendar */}
+      <section className="px-5 mb-4">
+        <MiniCalendar 
+          todos={todos.todos} 
+          onDateClick={(date) => navigate(`/tasks?date=${format(date, 'yyyy-MM-dd')}`)}
         />
       </section>
 
