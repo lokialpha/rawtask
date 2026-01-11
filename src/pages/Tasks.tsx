@@ -3,12 +3,13 @@ import { TodoCard, TodoCardDesktop } from '@/components/todos/TodoCard';
 import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { TaskCalendarView } from '@/components/tasks/TaskCalendarView';
 import { useData } from '@/contexts/DataContext';
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Search, X, AlertTriangle, ArrowUpDown, Calendar, DollarSign, Users, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, X, AlertTriangle, ArrowUpDown, Calendar, DollarSign, Users, CalendarDays, ChevronLeft, ChevronRight, List, LayoutGrid } from 'lucide-react';
 import { format, parseISO, isSameDay, addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import {
   DropdownMenu,
@@ -20,6 +21,7 @@ import {
 type Filter = 'all' | 'pending' | 'completed' | 'overdue' | 'date' | 'dateRange';
 type DateRangePreset = 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth' | null;
 type SortOption = 'newest' | 'dueDate' | 'amount' | 'client';
+type ViewMode = 'list' | 'calendar';
 
 const sortLabels: Record<SortOption, string> = {
   newest: 'Newest',
@@ -34,11 +36,13 @@ export default function Tasks() {
   const { todos, clients } = useData();
   const [filter, setFilter] = useState<Filter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<Date | null>(null);
   const [dateRangePreset, setDateRangePreset] = useState<DateRangePreset>(null);
   const [dateRange, setDateRange] = useState<{ start: Date; end: Date } | null>(null);
+  const [calendarSelectedDate, setCalendarSelectedDate] = useState<Date | null>(new Date());
 
   // Read date filter from URL on mount
   useEffect(() => {
@@ -272,9 +276,37 @@ export default function Tasks() {
         </div>
       </div>
 
-      {/* Filters & Sort */}
+      {/* Filters, Sort & View Toggle */}
       <div className="px-5 mb-4">
         <div className="flex gap-2">
+          {/* View Toggle */}
+          <div className="flex p-1 bg-muted rounded-xl">
+            <button
+              onClick={() => setViewMode('list')}
+              className={cn(
+                "p-2 rounded-lg transition-all duration-200",
+                viewMode === 'list'
+                  ? "bg-card shadow-soft text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              aria-label="List view"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('calendar')}
+              className={cn(
+                "p-2 rounded-lg transition-all duration-200",
+                viewMode === 'calendar'
+                  ? "bg-card shadow-soft text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              aria-label="Calendar view"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
+
           <div className="flex gap-2 p-1 bg-muted rounded-xl flex-1">
             {filters.map(f => (
               <button
@@ -440,43 +472,56 @@ export default function Tasks() {
         </div>
       </div>
 
-      {/* Tasks List */}
-      <section className="px-5 pb-6 space-y-3">
-        {searchQuery && (
-          <p className="text-xs text-muted-foreground">
-            {filteredAndSortedTodos.length} result{filteredAndSortedTodos.length !== 1 ? 's' : ''} for "{searchQuery}"
-          </p>
-        )}
-        {filteredAndSortedTodos.length > 0 ? (
-          filteredAndSortedTodos.map(todo => (
-            <div key={todo.id}>
-              {/* Mobile - swipeable */}
-              <div className="sm:hidden">
-                <TodoCard
-                  todo={todo}
-                  client={getClient(todo.clientId)}
-                  onToggle={todos.toggleTodo}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                />
-              </div>
-              {/* Desktop - action buttons */}
-              <div className="hidden sm:block">
-                <TodoCardDesktop
-                  todo={todo}
-                  client={getClient(todo.clientId)}
-                  onToggle={todos.toggleTodo}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
-                />
-              </div>
-            </div>
-          ))
+      {/* Tasks Content */}
+      <section className="px-5 pb-6">
+        {viewMode === 'calendar' ? (
+          <TaskCalendarView
+            todos={filteredAndSortedTodos}
+            clients={clients.clients}
+            selectedDate={calendarSelectedDate}
+            onDateSelect={setCalendarSelectedDate}
+            onTaskToggle={todos.toggleTodo}
+            onTaskEdit={handleEdit}
+          />
         ) : (
-          <div className="bg-card rounded-2xl p-8 text-center shadow-soft">
-            <p className="text-muted-foreground">
-              {searchQuery ? `No tasks matching "${searchQuery}"` : 'No tasks found'}
-            </p>
+          <div className="space-y-3">
+            {searchQuery && (
+              <p className="text-xs text-muted-foreground">
+                {filteredAndSortedTodos.length} result{filteredAndSortedTodos.length !== 1 ? 's' : ''} for "{searchQuery}"
+              </p>
+            )}
+            {filteredAndSortedTodos.length > 0 ? (
+              filteredAndSortedTodos.map(todo => (
+                <div key={todo.id}>
+                  {/* Mobile - swipeable */}
+                  <div className="sm:hidden">
+                    <TodoCard
+                      todo={todo}
+                      client={getClient(todo.clientId)}
+                      onToggle={todos.toggleTodo}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                    />
+                  </div>
+                  {/* Desktop - action buttons */}
+                  <div className="hidden sm:block">
+                    <TodoCardDesktop
+                      todo={todo}
+                      client={getClient(todo.clientId)}
+                      onToggle={todos.toggleTodo}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                    />
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="bg-card rounded-2xl p-8 text-center shadow-soft">
+                <p className="text-muted-foreground">
+                  {searchQuery ? `No tasks matching "${searchQuery}"` : 'No tasks found'}
+                </p>
+              </div>
+            )}
           </div>
         )}
       </section>

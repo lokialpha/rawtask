@@ -1,0 +1,252 @@
+import { useMemo, useState, useCallback } from 'react';
+import { 
+  startOfMonth, 
+  endOfMonth, 
+  eachDayOfInterval, 
+  format, 
+  isSameMonth, 
+  isToday, 
+  isSameDay,
+  startOfWeek, 
+  endOfWeek,
+  addMonths,
+  subMonths
+} from 'date-fns';
+import { ChevronLeft, ChevronRight, Check, Clock, DollarSign } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Todo, Client } from '@/types';
+
+interface TaskCalendarViewProps {
+  todos: Todo[];
+  clients: Client[];
+  onDateSelect: (date: Date) => void;
+  onTaskToggle: (id: string) => void;
+  onTaskEdit: (id: string) => void;
+  selectedDate: Date | null;
+}
+
+export function TaskCalendarView({ 
+  todos, 
+  clients, 
+  onDateSelect, 
+  onTaskToggle, 
+  onTaskEdit,
+  selectedDate 
+}: TaskCalendarViewProps) {
+  const [currentMonth, setCurrentMonth] = useState(selectedDate || new Date());
+  
+  const monthStart = startOfMonth(currentMonth);
+  const monthEnd = endOfMonth(currentMonth);
+  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+  
+  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+  const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  // Group tasks by date
+  const tasksByDate = useMemo(() => {
+    const grouped: Record<string, Todo[]> = {};
+    todos.forEach(todo => {
+      const dateKey = todo.dueDate;
+      if (!grouped[dateKey]) grouped[dateKey] = [];
+      grouped[dateKey].push(todo);
+    });
+    return grouped;
+  }, [todos]);
+
+  const getClient = useCallback((clientId: string) => 
+    clients.find(c => c.id === clientId),
+    [clients]
+  );
+
+  // Get tasks for selected date
+  const selectedDateTasks = useMemo(() => {
+    if (!selectedDate) return [];
+    const dateKey = format(selectedDate, 'yyyy-MM-dd');
+    return tasksByDate[dateKey] || [];
+  }, [selectedDate, tasksByDate]);
+
+  const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
+  const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+
+  return (
+    <div className="space-y-4">
+      {/* Calendar Grid */}
+      <div className="bg-card rounded-2xl p-4 shadow-soft">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-foreground">
+            {format(currentMonth, 'MMMM yyyy')}
+          </h3>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handlePrevMonth}
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+            </button>
+            <button
+              onClick={() => {
+                setCurrentMonth(new Date());
+                onDateSelect(new Date());
+              }}
+              className="px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
+            >
+              Today
+            </button>
+            <button
+              onClick={handleNextMonth}
+              className="p-2 rounded-lg hover:bg-muted transition-colors"
+            >
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </button>
+          </div>
+        </div>
+
+        {/* Weekday headers */}
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {weekDays.map((day) => (
+            <div 
+              key={day} 
+              className="text-center text-xs font-medium text-muted-foreground py-2"
+            >
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* Calendar grid */}
+        <div className="grid grid-cols-7 gap-1">
+          {days.map((day) => {
+            const dateKey = format(day, 'yyyy-MM-dd');
+            const dayTasks = tasksByDate[dateKey] || [];
+            const completedCount = dayTasks.filter(t => t.completed).length;
+            const pendingCount = dayTasks.length - completedCount;
+            const isCurrentMonth = isSameMonth(day, currentMonth);
+            const isTodayDate = isToday(day);
+            const isSelected = selectedDate && isSameDay(day, selectedDate);
+
+            return (
+              <button
+                key={dateKey}
+                onClick={() => onDateSelect(day)}
+                className={cn(
+                  "relative min-h-[60px] sm:min-h-[80px] p-1 rounded-lg transition-all flex flex-col",
+                  !isCurrentMonth && "opacity-40",
+                  isCurrentMonth && "hover:bg-muted/50",
+                  isTodayDate && "ring-2 ring-primary ring-inset",
+                  isSelected && "bg-primary/10"
+                )}
+              >
+                <span className={cn(
+                  "text-xs font-medium mb-1",
+                  isTodayDate && "text-primary font-bold",
+                  isSelected && "text-primary"
+                )}>
+                  {format(day, 'd')}
+                </span>
+                
+                {/* Task indicators */}
+                {dayTasks.length > 0 && isCurrentMonth && (
+                  <div className="flex flex-wrap gap-0.5 mt-auto">
+                    {pendingCount > 0 && (
+                      <div className="flex items-center gap-0.5 px-1 py-0.5 bg-todo/20 text-todo rounded text-[10px] font-medium">
+                        <Clock className="w-2.5 h-2.5" />
+                        <span>{pendingCount}</span>
+                      </div>
+                    )}
+                    {completedCount > 0 && (
+                      <div className="flex items-center gap-0.5 px-1 py-0.5 bg-income/20 text-income rounded text-[10px] font-medium">
+                        <Check className="w-2.5 h-2.5" />
+                        <span>{completedCount}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Selected Date Tasks */}
+      {selectedDate && (
+        <div className="bg-card rounded-2xl p-4 shadow-soft">
+          <h4 className="text-sm font-semibold mb-3">
+            {format(selectedDate, 'EEEE, MMMM d')}
+            <span className="text-muted-foreground font-normal ml-2">
+              ({selectedDateTasks.length} task{selectedDateTasks.length !== 1 ? 's' : ''})
+            </span>
+          </h4>
+          
+          {selectedDateTasks.length > 0 ? (
+            <div className="space-y-2">
+              {selectedDateTasks.map(task => {
+                const client = getClient(task.clientId);
+                return (
+                  <div
+                    key={task.id}
+                    className={cn(
+                      "flex items-center gap-3 p-3 rounded-xl transition-all",
+                      task.completed ? "bg-muted/50" : "bg-muted"
+                    )}
+                  >
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onTaskToggle(task.id);
+                      }}
+                      className={cn(
+                        "w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all flex-shrink-0",
+                        task.completed
+                          ? "bg-income border-income"
+                          : "border-muted-foreground hover:border-primary"
+                      )}
+                    >
+                      {task.completed && <Check className="w-3 h-3 text-white" />}
+                    </button>
+                    
+                    <button
+                      onClick={() => onTaskEdit(task.id)}
+                      className="flex-1 text-left"
+                    >
+                      <p className={cn(
+                        "text-sm font-medium",
+                        task.completed && "line-through text-muted-foreground"
+                      )}>
+                        {task.title}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {client && (
+                          <span 
+                            className="text-xs px-1.5 py-0.5 rounded-full"
+                            style={{ 
+                              backgroundColor: `${client.color}20`,
+                              color: client.color 
+                            }}
+                          >
+                            {client.name}
+                          </span>
+                        )}
+                        {task.amount && task.amount > 0 && (
+                          <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                            <DollarSign className="w-3 h-3" />
+                            {task.amount}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              No tasks for this date
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
