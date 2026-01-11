@@ -6,9 +6,9 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Search, X } from 'lucide-react';
+import { Search, X, AlertTriangle } from 'lucide-react';
 
-type Filter = 'all' | 'pending' | 'completed';
+type Filter = 'all' | 'pending' | 'completed' | 'overdue';
 
 export default function Tasks() {
   const navigate = useNavigate();
@@ -17,8 +17,17 @@ export default function Tasks() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  const overdueCount = useMemo(() => {
+    const now = new Date();
+    return todos.todos.filter(todo => {
+      if (!todo.completed || todo.paymentStatus !== 'unpaid' || !todo.dueDate) return false;
+      return new Date(todo.dueDate) < now;
+    }).length;
+  }, [todos.todos]);
+
   const filteredTodos = useMemo(() => {
     let result = todos.todos;
+    const now = new Date();
 
     // Apply search filter
     if (searchQuery.trim()) {
@@ -37,6 +46,11 @@ export default function Tasks() {
       result = result.filter(t => !t.completed);
     } else if (filter === 'completed') {
       result = result.filter(t => t.completed);
+    } else if (filter === 'overdue') {
+      result = result.filter(t => {
+        if (!t.completed || t.paymentStatus !== 'unpaid' || !t.dueDate) return false;
+        return new Date(t.dueDate) < now;
+      });
     }
 
     return result;
@@ -61,7 +75,7 @@ export default function Tasks() {
     }
   };
 
-  const filters: { key: Filter; label: string }[] = [
+  const filters: { key: Filter; label: string; count?: number }[] = [
     { key: 'all', label: 'All' },
     { key: 'pending', label: 'Pending' },
     { key: 'completed', label: 'Done' },
@@ -103,21 +117,37 @@ export default function Tasks() {
 
       {/* Filters */}
       <div className="px-5 mb-4">
-        <div className="flex gap-2 p-1 bg-muted rounded-xl">
-          {filters.map(f => (
+        <div className="flex gap-2">
+          <div className="flex gap-2 p-1 bg-muted rounded-xl flex-1">
+            {filters.map(f => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key)}
+                className={cn(
+                  "flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200",
+                  filter === f.key
+                    ? "bg-card shadow-soft text-foreground"
+                    : "text-muted-foreground"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+          {overdueCount > 0 && (
             <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
+              onClick={() => setFilter(filter === 'overdue' ? 'all' : 'overdue')}
               className={cn(
-                "flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-200",
-                filter === f.key
-                  ? "bg-card shadow-soft text-foreground"
-                  : "text-muted-foreground"
+                "flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-200",
+                filter === 'overdue'
+                  ? "bg-expense text-white shadow-md"
+                  : "bg-expense-soft text-expense hover:bg-expense/20 animate-pulse-subtle"
               )}
             >
-              {f.label}
+              <AlertTriangle className="w-4 h-4" />
+              <span>{overdueCount}</span>
             </button>
-          ))}
+          )}
         </div>
       </div>
 
