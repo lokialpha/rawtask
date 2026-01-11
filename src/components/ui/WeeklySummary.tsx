@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { CheckCircle2, TrendingUp, Calendar, Target, ChevronDown, Flame, Trophy, Star, Zap } from 'lucide-react';
+import { CheckCircle2, TrendingUp, Calendar, Target, ChevronDown, Flame, Trophy, Star, Zap, History } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format, isWithinInterval, eachDayOfInterval, isSameDay, subDays } from 'date-fns';
 import {
@@ -103,11 +103,48 @@ function calculateStreak(todos: Todo[]): { current: number; best: number } {
 
 export function WeeklySummary({ todos, moneyEntries, formatCurrency, monthlyGoal = 0 }: WeeklySummaryProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showStreakHistory, setShowStreakHistory] = useState(false);
   const [celebratedMilestone, setCelebratedMilestone] = useState<number | null>(null);
 
   const streak = useMemo(() => calculateStreak(todos), [todos]);
   const currentMilestone = getMilestone(streak.current);
   const nextMilestone = getNextMilestone(streak.current);
+
+  // Calculate 30-day streak history
+  const streakHistory = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Get all unique dates with completions
+    const completionDates = new Map<string, number>();
+    todos.forEach(todo => {
+      if (todo.completed) {
+        const dateStr = todo.completedAt 
+          ? new Date(todo.completedAt).toISOString().split('T')[0]
+          : todo.dueDate;
+        completionDates.set(dateStr, (completionDates.get(dateStr) || 0) + 1);
+      }
+    });
+
+    // Generate last 30 days
+    const days = [];
+    for (let i = 29; i >= 0; i--) {
+      const date = subDays(today, i);
+      const dateStr = date.toISOString().split('T')[0];
+      const count = completionDates.get(dateStr) || 0;
+      days.push({
+        date,
+        dateStr,
+        count,
+        isToday: i === 0,
+        dayOfMonth: format(date, 'd'),
+        dayName: format(date, 'EEE'),
+        fullDate: format(date, 'MMM d'),
+      });
+    }
+    
+    return days;
+  }, [todos]);
 
   // Celebrate milestone achievements
   useEffect(() => {
@@ -307,9 +344,75 @@ export function WeeklySummary({ todos, moneyEntries, formatCurrency, monthlyGoal
                   Best: {streak.best} days
                 </p>
               )}
+              {/* Streak History Toggle */}
+              <button
+                onClick={() => setShowStreakHistory(!showStreakHistory)}
+                className="mt-2 flex items-center gap-1 text-2xs text-orange-500/70 hover:text-orange-500 transition-colors"
+              >
+                <History className="w-3 h-3" />
+                <span>{showStreakHistory ? 'Hide' : '30 days'}</span>
+              </button>
             </div>
           )}
         </div>
+
+        {/* 30-Day Streak History */}
+        {showStreakHistory && (
+          <div className="mb-4 p-3 bg-gradient-to-br from-orange-500/10 to-red-500/10 rounded-xl border border-orange-500/20 animate-fade-in">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <History className="w-3.5 h-3.5 text-orange-500" />
+                <span className="text-xs font-medium">Last 30 Days</span>
+              </div>
+              <span className="text-2xs text-muted-foreground">
+                {streakHistory.filter(d => d.count > 0).length} active days
+              </span>
+            </div>
+            
+            {/* Grid of 30 days */}
+            <div className="grid grid-cols-10 gap-1">
+              {streakHistory.map((day, i) => {
+                const intensity = day.count === 0 ? 0 : Math.min(day.count, 5);
+                return (
+                  <div
+                    key={i}
+                    className="group relative"
+                  >
+                    <div
+                      className={cn(
+                        "w-full aspect-square rounded-sm transition-all duration-200",
+                        day.isToday && "ring-1 ring-orange-500 ring-offset-1 ring-offset-background",
+                        intensity === 0 && "bg-muted/50",
+                        intensity === 1 && "bg-orange-200 dark:bg-orange-900/40",
+                        intensity === 2 && "bg-orange-300 dark:bg-orange-800/60",
+                        intensity === 3 && "bg-orange-400 dark:bg-orange-700/80",
+                        intensity === 4 && "bg-orange-500 dark:bg-orange-600",
+                        intensity >= 5 && "bg-orange-600 dark:bg-orange-500"
+                      )}
+                    />
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-popover border rounded shadow-lg text-2xs whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                      <p className="font-medium">{day.fullDate}</p>
+                      <p className="text-muted-foreground">
+                        {day.count > 0 ? `${day.count} task${day.count !== 1 ? 's' : ''}` : 'No tasks'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Legend */}
+            <div className="flex items-center justify-end gap-1 mt-2">
+              <span className="text-2xs text-muted-foreground mr-1">Less</span>
+              <div className="w-2.5 h-2.5 rounded-sm bg-muted/50" />
+              <div className="w-2.5 h-2.5 rounded-sm bg-orange-200 dark:bg-orange-900/40" />
+              <div className="w-2.5 h-2.5 rounded-sm bg-orange-400 dark:bg-orange-700/80" />
+              <div className="w-2.5 h-2.5 rounded-sm bg-orange-600 dark:bg-orange-500" />
+              <span className="text-2xs text-muted-foreground ml-1">More</span>
+            </div>
+          </div>
+        )}
 
         {/* Monthly Goal Progress */}
         {monthlyGoal > 0 && (
