@@ -482,6 +482,12 @@ export default function Tasks() {
             onDateSelect={setCalendarSelectedDate}
             onTaskToggle={todos.toggleTodo}
             onTaskEdit={handleEdit}
+            onTaskReschedule={(taskId, newDate) => {
+              const task = todos.todos.find(t => t.id === taskId);
+              if (task) {
+                todos.updateTodo(taskId, { ...task, dueDate: newDate });
+              }
+            }}
           />
         ) : (
           <div className="space-y-3">
