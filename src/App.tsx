@@ -9,6 +9,7 @@ import Tasks from "./pages/Tasks";
 import Money from "./pages/Money";
 import Clients from "./pages/Clients";
 import Stats from "./pages/Stats";
+import Settings from "./pages/Settings";
 import AddTask from "./pages/AddTask";
 import AddMoney from "./pages/AddMoney";
 import AddClient from "./pages/AddClient";
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/clients" element={<Clients />} />
             <Route path="/clients/new" element={<AddClient />} />
             <Route path="/stats" element={<Stats />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
