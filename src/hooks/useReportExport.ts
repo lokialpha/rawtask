@@ -1,20 +1,59 @@
 import { useData } from '@/contexts/DataContext';
 import { useSettings } from '@/hooks/useSettings';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { MoneyEntry } from '@/types';
+
+interface DateRange {
+  from?: Date;
+  to?: Date;
+}
 
 export function useReportExport() {
   const { todos, money, clients } = useData();
-  const { settings, formatCurrency } = useSettings();
+  const { settings } = useSettings();
 
   const getClientName = (clientId: string) => {
     return clients.clients.find(c => c.id === clientId)?.name || 'Unknown';
   };
 
-  const generateCSVContent = () => {
+  const filterEntriesByDateRange = (entries: MoneyEntry[], dateRange?: DateRange) => {
+    if (!dateRange?.from && !dateRange?.to) {
+      return entries;
+    }
+
+    return entries.filter(entry => {
+      const entryDate = new Date(entry.date);
+      
+      if (dateRange.from && dateRange.to) {
+        return isWithinInterval(entryDate, {
+          start: startOfDay(dateRange.from),
+          end: endOfDay(dateRange.to)
+        });
+      }
+      
+      if (dateRange.from) {
+        return entryDate >= startOfDay(dateRange.from);
+      }
+      
+      if (dateRange.to) {
+        return entryDate <= endOfDay(dateRange.to);
+      }
+      
+      return true;
+    });
+  };
+
+  const getFilteredEntriesCount = (dateRange?: DateRange) => {
+    return filterEntriesByDateRange(money.entries, dateRange).length;
+  };
+
+  const generateCSVContent = (dateRange?: DateRange) => {
     const headers = ['Date', 'Type', 'Category', 'Description', 'Amount', 'Linked Task'];
     
-    const rows = money.entries
+    const filteredEntries = filterEntriesByDateRange(money.entries, dateRange);
+    
+    const rows = filteredEntries
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .map(entry => {
         const linkedTask = entry.linkedTodoId 
@@ -38,14 +77,19 @@ export function useReportExport() {
     return csvContent;
   };
 
-  const exportCSV = () => {
+  const exportCSV = (dateRange?: DateRange) => {
     try {
-      const csvContent = generateCSVContent();
+      const csvContent = generateCSVContent(dateRange);
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `financial-report-${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      
+      const dateRangeStr = dateRange?.from && dateRange?.to 
+        ? `${format(dateRange.from, 'yyyy-MM-dd')}_to_${format(dateRange.to, 'yyyy-MM-dd')}`
+        : format(new Date(), 'yyyy-MM-dd');
+      
+      link.download = `financial-report-${dateRangeStr}.csv`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -57,19 +101,21 @@ export function useReportExport() {
     }
   };
 
-  const generatePDFContent = () => {
-    const totalIncome = money.entries
+  const generatePDFContent = (dateRange?: DateRange) => {
+    const filteredEntries = filterEntriesByDateRange(money.entries, dateRange);
+    
+    const totalIncome = filteredEntries
       .filter(e => e.type === 'income')
       .reduce((sum, e) => sum + e.amount, 0);
     
-    const totalExpense = money.entries
+    const totalExpense = filteredEntries
       .filter(e => e.type === 'expense')
       .reduce((sum, e) => sum + e.amount, 0);
 
     const incomeByCategory: Record<string, number> = {};
     const expenseByCategory: Record<string, number> = {};
 
-    money.entries.forEach(e => {
+    filteredEntries.forEach(e => {
       const category = e.category || 'Other';
       if (e.type === 'income') {
         incomeByCategory[category] = (incomeByCategory[category] || 0) + e.amount;
@@ -82,14 +128,23 @@ export function useReportExport() {
     const paidTasks = todos.todos.filter(t => t.paymentStatus === 'paid').length;
     const unpaidTasks = todos.todos.filter(t => t.paymentStatus === 'unpaid' && t.completed).length;
 
+    const dateRangeLabel = dateRange?.from && dateRange?.to
+      ? `${format(dateRange.from, 'MMM d, yyyy')} - ${format(dateRange.to, 'MMM d, yyyy')}`
+      : dateRange?.from
+        ? `From ${format(dateRange.from, 'MMM d, yyyy')}`
+        : dateRange?.to
+          ? `Until ${format(dateRange.to, 'MMM d, yyyy')}`
+          : 'All Time';
+
     return {
       generatedAt: format(new Date(), 'PPP'),
+      dateRangeLabel,
       currency: settings.currency.symbol,
       summary: {
         totalIncome,
         totalExpense,
         netBalance: totalIncome - totalExpense,
-        totalEntries: money.entries.length,
+        totalEntries: filteredEntries.length,
       },
       incomeByCategory: Object.entries(incomeByCategory)
         .sort((a, b) => b[1] - a[1]),
@@ -101,15 +156,15 @@ export function useReportExport() {
         paid: paidTasks,
         unpaid: unpaidTasks,
       },
-      recentTransactions: money.entries
+      recentTransactions: filteredEntries
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        .slice(0, 20),
+        .slice(0, 50),
     };
   };
 
-  const exportPDF = () => {
+  const exportPDF = (dateRange?: DateRange) => {
     try {
-      const data = generatePDFContent();
+      const data = generatePDFContent(dateRange);
       
       // Generate HTML content for PDF
       const htmlContent = `
@@ -124,6 +179,7 @@ export function useReportExport() {
             .header { text-align: center; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 2px solid #e5e5e5; }
             .header h1 { font-size: 28px; font-weight: 700; color: #1a1a1a; }
             .header p { color: #666; margin-top: 8px; }
+            .header .date-range { color: #333; font-weight: 500; margin-top: 4px; }
             .section { margin-bottom: 32px; }
             .section h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #333; border-bottom: 1px solid #eee; padding-bottom: 8px; }
             .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
@@ -149,6 +205,7 @@ export function useReportExport() {
           <div class="header">
             <h1>📊 Financial Report</h1>
             <p>Generated on ${data.generatedAt}</p>
+            <p class="date-range">Period: ${data.dateRangeLabel}</p>
           </div>
           
           <div class="section">
@@ -226,7 +283,7 @@ export function useReportExport() {
           </div>
 
           <div class="section">
-            <h2>Recent Transactions</h2>
+            <h2>Transactions</h2>
             <table>
               <thead>
                 <tr>
@@ -276,6 +333,7 @@ export function useReportExport() {
   return {
     exportCSV,
     exportPDF,
+    getFilteredEntriesCount,
     entriesCount: money.entries.length,
   };
 }
