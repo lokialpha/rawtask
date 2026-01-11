@@ -12,9 +12,10 @@ import {
   addMonths,
   subMonths
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, Check, Clock, DollarSign } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Clock, DollarSign, GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Todo, Client } from '@/types';
+import { toast } from 'sonner';
 
 interface TaskCalendarViewProps {
   todos: Todo[];
@@ -22,6 +23,7 @@ interface TaskCalendarViewProps {
   onDateSelect: (date: Date) => void;
   onTaskToggle: (id: string) => void;
   onTaskEdit: (id: string) => void;
+  onTaskReschedule: (taskId: string, newDate: string) => void;
   selectedDate: Date | null;
 }
 
@@ -31,9 +33,12 @@ export function TaskCalendarView({
   onDateSelect, 
   onTaskToggle, 
   onTaskEdit,
+  onTaskReschedule,
   selectedDate 
 }: TaskCalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(selectedDate || new Date());
+  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
   
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
@@ -68,6 +73,44 @@ export function TaskCalendarView({
 
   const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
   const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, taskId: string) => {
+    setDraggedTaskId(taskId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', taskId);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedTaskId(null);
+    setDragOverDate(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent, dateKey: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverDate(dateKey);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverDate(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, dateKey: string) => {
+    e.preventDefault();
+    const taskId = e.dataTransfer.getData('text/plain');
+    
+    if (taskId && draggedTaskId) {
+      const task = todos.find(t => t.id === taskId);
+      if (task && task.dueDate !== dateKey) {
+        onTaskReschedule(taskId, dateKey);
+        toast.success(`Task moved to ${format(new Date(dateKey), 'MMM d')}`);
+      }
+    }
+    
+    setDraggedTaskId(null);
+    setDragOverDate(null);
+  };
 
   return (
     <div className="space-y-4">
@@ -125,17 +168,22 @@ export function TaskCalendarView({
             const isCurrentMonth = isSameMonth(day, currentMonth);
             const isTodayDate = isToday(day);
             const isSelected = selectedDate && isSameDay(day, selectedDate);
+            const isDragOver = dragOverDate === dateKey;
 
             return (
               <button
                 key={dateKey}
                 onClick={() => onDateSelect(day)}
+                onDragOver={(e) => handleDragOver(e, dateKey)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, dateKey)}
                 className={cn(
                   "relative min-h-[60px] sm:min-h-[80px] p-1 rounded-lg transition-all flex flex-col",
                   !isCurrentMonth && "opacity-40",
                   isCurrentMonth && "hover:bg-muted/50",
                   isTodayDate && "ring-2 ring-primary ring-inset",
-                  isSelected && "bg-primary/10"
+                  isSelected && "bg-primary/10",
+                  isDragOver && "bg-primary/20 ring-2 ring-primary ring-dashed"
                 )}
               >
                 <span className={cn(
@@ -172,25 +220,41 @@ export function TaskCalendarView({
       {/* Selected Date Tasks */}
       {selectedDate && (
         <div className="bg-card rounded-2xl p-4 shadow-soft">
-          <h4 className="text-sm font-semibold mb-3">
-            {format(selectedDate, 'EEEE, MMMM d')}
-            <span className="text-muted-foreground font-normal ml-2">
-              ({selectedDateTasks.length} task{selectedDateTasks.length !== 1 ? 's' : ''})
-            </span>
-          </h4>
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-sm font-semibold">
+              {format(selectedDate, 'EEEE, MMMM d')}
+              <span className="text-muted-foreground font-normal ml-2">
+                ({selectedDateTasks.length} task{selectedDateTasks.length !== 1 ? 's' : ''})
+              </span>
+            </h4>
+            {selectedDateTasks.length > 0 && (
+              <span className="text-xs text-muted-foreground">
+                Drag tasks to reschedule
+              </span>
+            )}
+          </div>
           
           {selectedDateTasks.length > 0 ? (
             <div className="space-y-2">
               {selectedDateTasks.map(task => {
                 const client = getClient(task.clientId);
+                const isDragging = draggedTaskId === task.id;
                 return (
                   <div
                     key={task.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, task.id)}
+                    onDragEnd={handleDragEnd}
                     className={cn(
-                      "flex items-center gap-3 p-3 rounded-xl transition-all",
-                      task.completed ? "bg-muted/50" : "bg-muted"
+                      "flex items-center gap-3 p-3 rounded-xl transition-all cursor-grab active:cursor-grabbing",
+                      task.completed ? "bg-muted/50" : "bg-muted",
+                      isDragging && "opacity-50 ring-2 ring-primary"
                     )}
                   >
+                    <div className="text-muted-foreground flex-shrink-0">
+                      <GripVertical className="w-4 h-4" />
+                    </div>
+                    
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
