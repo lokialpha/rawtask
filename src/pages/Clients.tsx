@@ -29,19 +29,20 @@ export default function Clients() {
   const { formatCurrency } = useSettings();
   const [deleteClientId, setDeleteClientId] = useState<string | null>(null);
 
-  const clientStats = useMemo(() => {
+  const { clientStats, overdueSummary } = useMemo(() => {
     const now = new Date();
     
-    return clients.clients.map(client => {
+    const stats = clients.clients.map(client => {
       const clientTodos = todos.todos.filter(t => t.clientId === client.id);
       const completed = clientTodos.filter(t => t.completed).length;
       const unpaid = clientTodos.filter(t => t.paymentStatus === 'unpaid' && t.completed).length;
       
-      // Calculate overdue unpaid tasks
-      const overdue = clientTodos.filter(t => {
+      // Calculate overdue unpaid tasks and their amounts
+      const overdueTasks = clientTodos.filter(t => {
         if (!t.completed || t.paymentStatus !== 'unpaid' || !t.dueDate) return false;
         return new Date(t.dueDate) < now;
-      }).length;
+      });
+      const overdueAmount = overdueTasks.reduce((sum, t) => sum + (t.amount || 0), 0);
       
       const income = money.entries
         .filter(m => {
@@ -55,10 +56,25 @@ export default function Clients() {
         totalTasks: clientTodos.length,
         completed,
         unpaid,
-        overdue,
+        overdue: overdueTasks.length,
+        overdueAmount,
         income,
       };
     });
+
+    // Calculate total overdue summary
+    const totalOverdueCount = stats.reduce((sum, c) => sum + c.overdue, 0);
+    const totalOverdueAmount = stats.reduce((sum, c) => sum + c.overdueAmount, 0);
+    const clientsWithOverdue = stats.filter(c => c.overdue > 0).length;
+
+    return {
+      clientStats: stats,
+      overdueSummary: {
+        count: totalOverdueCount,
+        amount: totalOverdueAmount,
+        clientsAffected: clientsWithOverdue,
+      },
+    };
   }, [clients.clients, todos.todos, money.entries]);
 
   const handleDelete = (id: string) => {
@@ -97,6 +113,29 @@ export default function Clients() {
           </button>
         </div>
       </header>
+
+      {/* Overdue Summary Banner */}
+      {overdueSummary.count > 0 && (
+        <div 
+          className="mx-5 mb-4 p-4 bg-expense-soft rounded-2xl border border-expense/20 cursor-pointer active:scale-[0.98] transition-transform"
+          onClick={() => navigate('/tasks/unpaid')}
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-expense/20 flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-expense" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-expense">
+                {formatCurrency(overdueSummary.amount)} overdue
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {overdueSummary.count} task{overdueSummary.count !== 1 ? 's' : ''} from {overdueSummary.clientsAffected} client{overdueSummary.clientsAffected !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-expense/60" />
+          </div>
+        </div>
+      )}
 
       <section className="px-5 pb-6 space-y-3">
         {clientStats.map(client => (
