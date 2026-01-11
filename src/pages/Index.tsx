@@ -1,6 +1,7 @@
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { SummaryCard } from '@/components/ui/SummaryCard';
 import { OverdueAlertBanner } from '@/components/ui/OverdueAlertBanner';
+import { WeeklySummary } from '@/components/ui/WeeklySummary';
 import { TodoCard, TodoCardDesktop } from '@/components/todos/TodoCard';
 import { MoneyEntryCard } from '@/components/money/MoneyEntryCard';
 import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
@@ -136,6 +137,15 @@ export default function Index() {
           />
         </section>
       )}
+
+      {/* Weekly Summary */}
+      <section className="px-5 mb-4">
+        <WeeklySummary
+          todos={todos.todos}
+          moneyEntries={money.entries}
+          formatCurrency={formatCurrency}
+        />
+      </section>
 
       {/* Summary Cards */}
       <section className="px-5 space-y-3">
