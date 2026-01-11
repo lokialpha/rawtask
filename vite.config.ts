@@ -17,5 +17,7 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    // Prevent "two copies of React" issues that can break hooks in dependencies (Radix, etc.)
+    dedupe: ["react", "react-dom"],
   },
 }));
