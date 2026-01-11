@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { 
   startOfMonth, 
   endOfMonth, 
@@ -12,7 +12,9 @@ import {
   addMonths,
   subMonths,
   addWeeks,
-  subWeeks
+  subWeeks,
+  isBefore,
+  startOfDay
 } from 'date-fns';
 import { ChevronLeft, ChevronRight, Check, Clock, DollarSign, GripVertical, Calendar, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -44,6 +46,29 @@ export function TaskCalendarView({
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('month');
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Update current time every minute for the time indicator
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Calculate the position of the current time indicator (percentage of day passed)
+  const timeIndicatorPosition = useMemo(() => {
+    const hours = currentTime.getHours();
+    const minutes = currentTime.getMinutes();
+    return ((hours * 60 + minutes) / (24 * 60)) * 100;
+  }, [currentTime]);
+
+  // Helper to check if a task is in the past (for today's tasks)
+  const isTaskPast = useCallback((task: Todo) => {
+    const taskDate = new Date(task.dueDate);
+    const today = startOfDay(new Date());
+    return isBefore(taskDate, today);
+  }, []);
   
   // Calculate days based on mode
   const days = useMemo(() => {
@@ -274,24 +299,43 @@ export function TaskCalendarView({
                   {calendarMode === 'week' ? format(day, 'MMM d') : format(day, 'd')}
                 </span>
                 
+                {/* Time indicator line for today in week view */}
+                {calendarMode === 'week' && isTodayDate && (
+                  <div 
+                    className="absolute left-0 right-0 z-10 pointer-events-none"
+                    style={{ top: `${Math.max(25, Math.min(95, 25 + (timeIndicatorPosition * 0.7)))}%` }}
+                  >
+                    <div className="flex items-center">
+                      <div className="w-2 h-2 rounded-full bg-destructive" />
+                      <div className="flex-1 h-0.5 bg-destructive" />
+                    </div>
+                  </div>
+                )}
+
                 {/* Task indicators or task list in week view */}
                 {dayTasks.length > 0 && showDay && (
                   calendarMode === 'week' ? (
                     <div className="flex-1 overflow-hidden space-y-0.5 mt-1">
-                      {dayTasks.slice(0, 3).map(task => (
-                        <div
-                          key={task.id}
-                          className={cn(
-                            "text-[10px] px-1 py-0.5 rounded truncate",
-                            task.completed 
-                              ? "bg-income/20 text-income line-through" 
-                              : "bg-todo/20 text-todo"
-                          )}
-                          title={task.title}
-                        >
-                          {task.title}
-                        </div>
-                      ))}
+                      {dayTasks.slice(0, 3).map(task => {
+                        const isPastDay = isBefore(startOfDay(day), startOfDay(new Date()));
+                        const isPastTask = isPastDay && !task.completed;
+                        return (
+                          <div
+                            key={task.id}
+                            className={cn(
+                              "text-[10px] px-1 py-0.5 rounded truncate transition-opacity",
+                              task.completed 
+                                ? "bg-income/20 text-income line-through opacity-60" 
+                                : isPastTask
+                                  ? "bg-destructive/20 text-destructive"
+                                  : "bg-todo/20 text-todo"
+                            )}
+                            title={task.title}
+                          >
+                            {task.title}
+                          </div>
+                        );
+                      })}
                       {dayTasks.length > 3 && (
                         <div className="text-[10px] text-muted-foreground text-center">
                           +{dayTasks.length - 3} more
