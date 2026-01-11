@@ -10,12 +10,16 @@ import {
   startOfWeek, 
   endOfWeek,
   addMonths,
-  subMonths
+  subMonths,
+  addWeeks,
+  subWeeks
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, Check, Clock, DollarSign, GripVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Clock, DollarSign, GripVertical, Calendar, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Todo, Client } from '@/types';
 import { toast } from 'sonner';
+
+type CalendarMode = 'month' | 'week';
 
 interface TaskCalendarViewProps {
   todos: Todo[];
@@ -37,15 +41,25 @@ export function TaskCalendarView({
   selectedDate 
 }: TaskCalendarViewProps) {
   const [currentMonth, setCurrentMonth] = useState(selectedDate || new Date());
+  const [calendarMode, setCalendarMode] = useState<CalendarMode>('month');
   const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
   
-  const monthStart = startOfMonth(currentMonth);
-  const monthEnd = endOfMonth(currentMonth);
-  const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-  const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
-  
-  const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+  // Calculate days based on mode
+  const days = useMemo(() => {
+    if (calendarMode === 'week') {
+      const weekStart = startOfWeek(currentMonth, { weekStartsOn: 0 });
+      const weekEnd = endOfWeek(currentMonth, { weekStartsOn: 0 });
+      return eachDayOfInterval({ start: weekStart, end: weekEnd });
+    } else {
+      const monthStart = startOfMonth(currentMonth);
+      const monthEnd = endOfMonth(currentMonth);
+      const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 });
+      const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+      return eachDayOfInterval({ start: calendarStart, end: calendarEnd });
+    }
+  }, [currentMonth, calendarMode]);
+
   const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   // Group tasks by date
@@ -71,8 +85,33 @@ export function TaskCalendarView({
     return tasksByDate[dateKey] || [];
   }, [selectedDate, tasksByDate]);
 
-  const handlePrevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
-  const handleNextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
+  const handlePrev = () => {
+    if (calendarMode === 'week') {
+      setCurrentMonth(subWeeks(currentMonth, 1));
+    } else {
+      setCurrentMonth(subMonths(currentMonth, 1));
+    }
+  };
+
+  const handleNext = () => {
+    if (calendarMode === 'week') {
+      setCurrentMonth(addWeeks(currentMonth, 1));
+    } else {
+      setCurrentMonth(addMonths(currentMonth, 1));
+    }
+  };
+
+  const getHeaderTitle = () => {
+    if (calendarMode === 'week') {
+      const weekStart = startOfWeek(currentMonth, { weekStartsOn: 0 });
+      const weekEnd = endOfWeek(currentMonth, { weekStartsOn: 0 });
+      if (isSameMonth(weekStart, weekEnd)) {
+        return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'd, yyyy')}`;
+      }
+      return `${format(weekStart, 'MMM d')} - ${format(weekEnd, 'MMM d, yyyy')}`;
+    }
+    return format(currentMonth, 'MMMM yyyy');
+  };
 
   // Drag and drop handlers
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
@@ -119,30 +158,60 @@ export function TaskCalendarView({
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-foreground">
-            {format(currentMonth, 'MMMM yyyy')}
+            {getHeaderTitle()}
           </h3>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={handlePrevMonth}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5 text-muted-foreground" />
-            </button>
-            <button
-              onClick={() => {
-                setCurrentMonth(new Date());
-                onDateSelect(new Date());
-              }}
-              className="px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
-            >
-              Today
-            </button>
-            <button
-              onClick={handleNextMonth}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
-            >
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </button>
+          <div className="flex items-center gap-2">
+            {/* Mode Toggle */}
+            <div className="flex p-0.5 bg-muted rounded-lg">
+              <button
+                onClick={() => setCalendarMode('week')}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all",
+                  calendarMode === 'week'
+                    ? "bg-card shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <CalendarDays className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Week</span>
+              </button>
+              <button
+                onClick={() => setCalendarMode('month')}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all",
+                  calendarMode === 'month'
+                    ? "bg-card shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Month</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handlePrev}
+                className="p-2 rounded-lg hover:bg-muted transition-colors"
+              >
+                <ChevronLeft className="w-5 h-5 text-muted-foreground" />
+              </button>
+              <button
+                onClick={() => {
+                  setCurrentMonth(new Date());
+                  onDateSelect(new Date());
+                }}
+                className="px-3 py-1.5 text-xs font-medium bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
+              >
+                Today
+              </button>
+              <button
+                onClick={handleNext}
+                className="p-2 rounded-lg hover:bg-muted transition-colors"
+              >
+                <ChevronRight className="w-5 h-5 text-muted-foreground" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -169,6 +238,7 @@ export function TaskCalendarView({
             const isTodayDate = isToday(day);
             const isSelected = selectedDate && isSameDay(day, selectedDate);
             const isDragOver = dragOverDate === dateKey;
+            const showDay = calendarMode === 'week' || isCurrentMonth;
 
             return (
               <button
@@ -178,38 +248,72 @@ export function TaskCalendarView({
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, dateKey)}
                 className={cn(
-                  "relative min-h-[60px] sm:min-h-[80px] p-1 rounded-lg transition-all flex flex-col",
-                  !isCurrentMonth && "opacity-40",
-                  isCurrentMonth && "hover:bg-muted/50",
+                  "relative p-1 rounded-lg transition-all flex flex-col",
+                  calendarMode === 'week' 
+                    ? "min-h-[100px] sm:min-h-[120px]" 
+                    : "min-h-[60px] sm:min-h-[80px]",
+                  !showDay && "opacity-40",
+                  showDay && "hover:bg-muted/50",
                   isTodayDate && "ring-2 ring-primary ring-inset",
                   isSelected && "bg-primary/10",
                   isDragOver && "bg-primary/20 ring-2 ring-primary ring-dashed"
                 )}
               >
+                {/* Day header for week view */}
+                {calendarMode === 'week' && (
+                  <span className="text-[10px] text-muted-foreground font-medium mb-0.5">
+                    {format(day, 'EEE')}
+                  </span>
+                )}
                 <span className={cn(
-                  "text-xs font-medium mb-1",
+                  "text-xs font-medium",
+                  calendarMode === 'week' && "text-sm mb-1",
                   isTodayDate && "text-primary font-bold",
                   isSelected && "text-primary"
                 )}>
-                  {format(day, 'd')}
+                  {calendarMode === 'week' ? format(day, 'MMM d') : format(day, 'd')}
                 </span>
                 
-                {/* Task indicators */}
-                {dayTasks.length > 0 && isCurrentMonth && (
-                  <div className="flex flex-wrap gap-0.5 mt-auto">
-                    {pendingCount > 0 && (
-                      <div className="flex items-center gap-0.5 px-1 py-0.5 bg-todo/20 text-todo rounded text-[10px] font-medium">
-                        <Clock className="w-2.5 h-2.5" />
-                        <span>{pendingCount}</span>
-                      </div>
-                    )}
-                    {completedCount > 0 && (
-                      <div className="flex items-center gap-0.5 px-1 py-0.5 bg-income/20 text-income rounded text-[10px] font-medium">
-                        <Check className="w-2.5 h-2.5" />
-                        <span>{completedCount}</span>
-                      </div>
-                    )}
-                  </div>
+                {/* Task indicators or task list in week view */}
+                {dayTasks.length > 0 && showDay && (
+                  calendarMode === 'week' ? (
+                    <div className="flex-1 overflow-hidden space-y-0.5 mt-1">
+                      {dayTasks.slice(0, 3).map(task => (
+                        <div
+                          key={task.id}
+                          className={cn(
+                            "text-[10px] px-1 py-0.5 rounded truncate",
+                            task.completed 
+                              ? "bg-income/20 text-income line-through" 
+                              : "bg-todo/20 text-todo"
+                          )}
+                          title={task.title}
+                        >
+                          {task.title}
+                        </div>
+                      ))}
+                      {dayTasks.length > 3 && (
+                        <div className="text-[10px] text-muted-foreground text-center">
+                          +{dayTasks.length - 3} more
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-0.5 mt-auto">
+                      {pendingCount > 0 && (
+                        <div className="flex items-center gap-0.5 px-1 py-0.5 bg-todo/20 text-todo rounded text-[10px] font-medium">
+                          <Clock className="w-2.5 h-2.5" />
+                          <span>{pendingCount}</span>
+                        </div>
+                      )}
+                      {completedCount > 0 && (
+                        <div className="flex items-center gap-0.5 px-1 py-0.5 bg-income/20 text-income rounded text-[10px] font-medium">
+                          <Check className="w-2.5 h-2.5" />
+                          <span>{completedCount}</span>
+                        </div>
+                      )}
+                    </div>
+                  )
                 )}
               </button>
             );
