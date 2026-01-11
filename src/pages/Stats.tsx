@@ -5,7 +5,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { TrendingUp, TrendingDown, Target, CheckCircle2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 
 export default function Stats() {
   const { todos, money } = useData();
@@ -66,6 +66,33 @@ export default function Stats() {
     
     return months;
   }, [money.entries]);
+
+  // Expense breakdown by category
+  const expenseByCategory = useMemo(() => {
+    const categoryMap: Record<string, number> = {};
+    
+    money.entries
+      .filter(e => e.type === 'expense')
+      .forEach(e => {
+        const category = e.category || 'Other';
+        categoryMap[category] = (categoryMap[category] || 0) + e.amount;
+      });
+    
+    return Object.entries(categoryMap)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+  }, [money.entries]);
+
+  const EXPENSE_COLORS = [
+    'hsl(0, 84%, 60%)',
+    'hsl(25, 95%, 53%)',
+    'hsl(45, 93%, 47%)',
+    'hsl(262, 83%, 58%)',
+    'hsl(199, 89%, 48%)',
+    'hsl(142, 71%, 45%)',
+    'hsl(330, 81%, 60%)',
+    'hsl(210, 40%, 50%)',
+  ];
 
   // Simple bar chart data
   const chartData = [
@@ -205,6 +232,60 @@ export default function Stats() {
           ))}
         </div>
       </section>
+
+      {/* Expense Breakdown Pie Chart */}
+      {expenseByCategory.length > 0 && (
+        <section className="px-5 mt-6">
+          <h2 className="text-base font-semibold mb-4">Expense Breakdown</h2>
+          <div className="bg-card rounded-2xl p-5 shadow-soft">
+            <div className="flex items-center gap-4">
+              <div className="w-[140px] h-[140px] flex-shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={expenseByCategory}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={35}
+                      outerRadius={60}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {expenseByCategory.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={EXPENSE_COLORS[index % EXPENSE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                      }}
+                      formatter={(value: number) => [formatCurrency(value)]}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex-1 space-y-2 overflow-hidden">
+                {expenseByCategory.slice(0, 5).map((item, index) => (
+                  <div key={item.name} className="flex items-center gap-2">
+                    <div 
+                      className="w-3 h-3 rounded-full flex-shrink-0" 
+                      style={{ backgroundColor: EXPENSE_COLORS[index % EXPENSE_COLORS.length] }}
+                    />
+                    <span className="text-xs text-muted-foreground truncate flex-1">{item.name}</span>
+                    <span className="text-xs font-medium">{formatCurrency(item.value)}</span>
+                  </div>
+                ))}
+                {expenseByCategory.length > 5 && (
+                  <p className="text-xs text-muted-foreground">+{expenseByCategory.length - 5} more</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Task Stats */}
       <section className="px-5 mt-6 pb-6">
