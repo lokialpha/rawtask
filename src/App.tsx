@@ -14,6 +14,7 @@ import AddMoney from "./pages/AddMoney";
 import AddClient from "./pages/AddClient";
 import EditTask from "./pages/EditTask";
 import EditMoney from "./pages/EditMoney";
+import UnpaidTasks from "./pages/UnpaidTasks";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/tasks" element={<Tasks />} />
             <Route path="/tasks/new" element={<AddTask />} />
             <Route path="/tasks/:id/edit" element={<EditTask />} />
+            <Route path="/tasks/unpaid" element={<UnpaidTasks />} />
             <Route path="/money" element={<Money />} />
             <Route path="/money/new" element={<AddMoney />} />
             <Route path="/money/:id/edit" element={<EditMoney />} />

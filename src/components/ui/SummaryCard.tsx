@@ -8,6 +8,7 @@ interface SummaryCardProps {
   icon: LucideIcon;
   variant: 'income' | 'expense' | 'pending' | 'primary';
   className?: string;
+  onClick?: () => void;
 }
 
 const variantStyles = {
@@ -44,15 +45,18 @@ export function SummaryCard({
   icon: Icon,
   variant,
   className,
+  onClick,
 }: SummaryCardProps) {
   const styles = variantStyles[variant];
 
   return (
     <div
+      onClick={onClick}
       className={cn(
         "relative overflow-hidden rounded-2xl p-4",
         styles.bg,
         styles.shadow,
+        onClick && "cursor-pointer active:scale-[0.98] transition-transform",
         className
       )}
     >
