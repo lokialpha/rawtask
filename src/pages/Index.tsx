@@ -122,10 +122,11 @@ export default function Index() {
           <SummaryCard
             title="Pending Payments"
             value={`$${summary.pendingAmount}`}
-            subtitle={`${summary.pendingCount} task${summary.pendingCount > 1 ? 's' : ''} waiting`}
+            subtitle={`${summary.pendingCount} task${summary.pendingCount > 1 ? 's' : ''} waiting → Tap to view`}
             icon={Clock}
             variant="pending"
             className="w-full"
+            onClick={() => navigate('/tasks/unpaid')}
           />
         )}
       </section>
