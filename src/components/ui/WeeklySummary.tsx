@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react';
-import { CheckCircle2, TrendingUp, Calendar, Target, ChevronDown, Flame, Trophy, Star, Zap, History } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { CheckCircle2, TrendingUp, Calendar, Target, ChevronDown, Flame, Trophy, Star, Zap, History, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { startOfWeek, endOfWeek, startOfMonth, endOfMonth, format, isWithinInterval, eachDayOfInterval, isSameDay, subDays } from 'date-fns';
 import {
@@ -102,9 +103,15 @@ function calculateStreak(todos: Todo[]): { current: number; best: number } {
 }
 
 export function WeeklySummary({ todos, moneyEntries, formatCurrency, monthlyGoal = 0 }: WeeklySummaryProps) {
+  const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
   const [showStreakHistory, setShowStreakHistory] = useState(false);
   const [celebratedMilestone, setCelebratedMilestone] = useState<number | null>(null);
+
+  const handleDayClick = (date: Date) => {
+    const dateStr = format(date, 'yyyy-MM-dd');
+    navigate(`/tasks?date=${dateStr}`);
+  };
 
   const streak = useMemo(() => calculateStreak(todos), [todos]);
   const currentMilestone = getMilestone(streak.current);
@@ -499,15 +506,16 @@ export function WeeklySummary({ todos, moneyEntries, formatCurrency, monthlyGoal
         <CollapsibleContent>
           <div className="mt-3 pt-3 border-t border-border space-y-2">
             {weekData.dailyActivity.map((day, i) => (
-              <div 
+              <button 
                 key={i}
+                onClick={() => handleDayClick(day.date)}
                 className={cn(
-                  "flex items-center justify-between p-3 rounded-xl transition-colors",
+                  "w-full flex items-center justify-between p-3 rounded-xl transition-all hover:scale-[1.01] active:scale-[0.99]",
                   day.isToday 
-                    ? "bg-primary/10 border border-primary/20" 
+                    ? "bg-primary/10 border border-primary/20 hover:bg-primary/15" 
                     : day.isFuture 
-                      ? "bg-muted/30" 
-                      : "bg-muted/50"
+                      ? "bg-muted/30 hover:bg-muted/40" 
+                      : "bg-muted/50 hover:bg-muted/60"
                 )}
               >
                 <div className="flex items-center gap-3">
@@ -518,7 +526,7 @@ export function WeeklySummary({ todos, moneyEntries, formatCurrency, monthlyGoal
                     <span className="font-bold">{format(day.date, 'd')}</span>
                     <span className="text-2xs opacity-70">{day.day}</span>
                   </div>
-                  <div>
+                  <div className="text-left">
                     <p className={cn(
                       "text-sm font-medium",
                       day.isToday && "text-primary"
@@ -537,18 +545,21 @@ export function WeeklySummary({ todos, moneyEntries, formatCurrency, monthlyGoal
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  {day.income > 0 && (
-                    <p className="text-sm font-semibold text-income">+{formatCurrency(day.income)}</p>
-                  )}
-                  {day.expense > 0 && (
-                    <p className="text-xs text-expense">-{formatCurrency(day.expense)}</p>
-                  )}
-                  {day.income === 0 && day.expense === 0 && !day.isFuture && (
-                    <p className="text-xs text-muted-foreground">—</p>
-                  )}
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    {day.income > 0 && (
+                      <p className="text-sm font-semibold text-income">+{formatCurrency(day.income)}</p>
+                    )}
+                    {day.expense > 0 && (
+                      <p className="text-xs text-expense">-{formatCurrency(day.expense)}</p>
+                    )}
+                    {day.income === 0 && day.expense === 0 && !day.isFuture && (
+                      <p className="text-xs text-muted-foreground">—</p>
+                    )}
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         </CollapsibleContent>
