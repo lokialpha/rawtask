@@ -3,10 +3,11 @@ import { useData } from '@/contexts/DataContext';
 import { useSettings } from '@/hooks/useSettings';
 import { DeleteConfirmDialog } from '@/components/ui/DeleteConfirmDialog';
 import { cn } from '@/lib/utils';
-import { ArrowLeft, CheckCircle2, Circle, Clock, TrendingUp, Pencil, Trash2, Calendar, Filter, ArrowUpDown } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Circle, Clock, TrendingUp, Pencil, Trash2, Calendar, ArrowUpDown, BarChart3 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { toast } from 'sonner';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const bgColorMap: Record<string, string> = {
   blue: 'bg-client-blue/10',
@@ -22,6 +23,14 @@ const dotColorMap: Record<string, string> = {
   pink: 'bg-client-pink',
   teal: 'bg-client-teal',
   orange: 'bg-client-orange',
+};
+
+const chartColorMap: Record<string, string> = {
+  blue: 'hsl(210, 90%, 55%)',
+  purple: 'hsl(270, 75%, 60%)',
+  pink: 'hsl(330, 80%, 60%)',
+  teal: 'hsl(175, 70%, 45%)',
+  orange: 'hsl(25, 95%, 55%)',
 };
 
 type FilterType = 'all' | 'completed' | 'pending' | 'unpaid';
@@ -106,6 +115,34 @@ export default function ClientDetail() {
     return filtered;
   }, [clientData, filter, sort]);
 
+  // Generate monthly income chart data (last 6 months)
+  const incomeChartData = useMemo(() => {
+    if (!clientData) return [];
+    
+    const months: { month: string; income: number; label: string }[] = [];
+    const now = new Date();
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      const monthLabel = date.toLocaleDateString('en-US', { month: 'short' });
+      
+      const monthIncome = clientData.income
+        .filter(entry => entry.date.startsWith(monthKey))
+        .reduce((sum, entry) => sum + entry.amount, 0);
+      
+      months.push({
+        month: monthKey,
+        label: monthLabel,
+        income: monthIncome,
+      });
+    }
+    
+    return months;
+  }, [clientData]);
+
+  const hasChartData = incomeChartData.some(d => d.income > 0);
+
   if (!clientData) {
     return (
       <MobileLayout showFab={false}>
@@ -187,6 +224,60 @@ export default function ClientDetail() {
           </div>
         )}
       </header>
+
+      {/* Income Trend Chart */}
+      {hasChartData && (
+        <section className="px-5 mt-4">
+          <div className="bg-card rounded-2xl p-4 shadow-soft">
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+              <BarChart3 className="w-4 h-4 text-income" />
+              Income Trend (Last 6 Months)
+            </h3>
+            <div className="h-40">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={incomeChartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id={`colorIncome-${id}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={chartColorMap[clientData.client.color]} stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor={chartColorMap[clientData.client.color]} stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <XAxis 
+                    dataKey="label" 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <YAxis 
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                    tickFormatter={(value) => value > 0 ? `${value}` : ''}
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                    }}
+                    formatter={(value: number) => [formatCurrency(value), 'Income']}
+                    labelFormatter={(label) => `Month: ${label}`}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="income"
+                    stroke={chartColorMap[clientData.client.color]}
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill={`url(#colorIncome-${id})`}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Tasks Section */}
       <section className="px-5 mt-2">
