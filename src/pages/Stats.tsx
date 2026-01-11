@@ -5,6 +5,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { TrendingUp, TrendingDown, Target, CheckCircle2 } from 'lucide-react';
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 export default function Stats() {
   const { todos, money } = useData();
@@ -39,6 +40,32 @@ export default function Stats() {
       progress,
     };
   }, [todos.todos, money.entries, settings.monthlyGoal]);
+
+  // Monthly comparison chart data (last 6 months)
+  const monthlyChartData = useMemo(() => {
+    const months: { name: string; income: number; expense: number }[] = [];
+    const now = new Date();
+    
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      
+      const monthEntries = money.entries.filter(e => {
+        const entryDate = new Date(e.date);
+        return entryDate.getFullYear() === year && entryDate.getMonth() === month;
+      });
+      
+      months.push({
+        name: monthName,
+        income: monthEntries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0),
+        expense: monthEntries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0),
+      });
+    }
+    
+    return months;
+  }, [money.entries]);
 
   // Simple bar chart data
   const chartData = [
@@ -93,6 +120,69 @@ export default function Stats() {
           icon={TrendingDown}
           variant="expense"
         />
+      </section>
+
+      {/* Monthly Comparison Chart */}
+      <section className="px-5 mt-6">
+        <h2 className="text-base font-semibold mb-4">Monthly Trends</h2>
+        <div className="bg-card rounded-2xl p-5 shadow-soft">
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={monthlyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="incomeGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--income))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--income))" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="expenseGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--expense))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--expense))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+              <XAxis 
+                dataKey="name" 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+              />
+              <YAxis 
+                axisLine={false} 
+                tickLine={false} 
+                tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '12px',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                }}
+                labelStyle={{ color: 'hsl(var(--foreground))', fontWeight: 600 }}
+                formatter={(value: number) => [formatCurrency(value)]}
+              />
+              <Legend 
+                verticalAlign="top" 
+                height={36}
+                formatter={(value) => <span className="text-xs text-muted-foreground capitalize">{value}</span>}
+              />
+              <Area
+                type="monotone"
+                dataKey="income"
+                stroke="hsl(var(--income))"
+                strokeWidth={2}
+                fill="url(#incomeGradient)"
+              />
+              <Area
+                type="monotone"
+                dataKey="expense"
+                stroke="hsl(var(--expense))"
+                strokeWidth={2}
+                fill="url(#expenseGradient)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
       </section>
 
       {/* Chart */}
